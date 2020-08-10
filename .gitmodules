@@ -1,0 +1,6 @@
+[submodule "DSKY-keyboard-replica"]
+	path = DSKY-keyboard-replica
+	url = https://github.com/rrainey/DSKY-keyboard-replica.git
+[submodule "DSKY-alarm-panel-replica"]
+	path = DSKY-alarm-panel-replica
+	url = https://github.com/rrainey/DSKY-alarm-panel-replica.git
