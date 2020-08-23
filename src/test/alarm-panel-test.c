@@ -71,7 +71,7 @@ bool setLamps(int fd, unsigned int state)
 bool checkKeyEvent( int fd_key, 
                     unsigned long *millis, 
                     unsigned char *s_id, 
-                    unsigned char *state);
+                    unsigned char *state)
 {
     unsigned char buf[6];
     *millis = 0;
@@ -81,6 +81,7 @@ bool checkKeyEvent( int fd_key,
 
     if( read(fd_key, buf, 6) == 6 ) {
         *millis = (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3];
+	//fprintf(stderr, "%ul\n", *millis);
         *s_id = buf[4];
         *state = buf[5];
         status = true;
@@ -92,6 +93,8 @@ int main(int argc, char *argv[])
 {
     int fd;
     int fd_key;
+    bool reported = false;
+    bool reported2 = false;
 
     struct timespec _500ms;
     _500ms.tv_sec = 0;
@@ -124,9 +127,12 @@ int main(int argc, char *argv[])
     while (1) {
 
         if (!setLamps(fd, 0xffff)) {
+            if (!reported) {
+	        reported = true;
             fprintf(stderr, "Error writing (1)\n");
-            close(fd);
-            exit(EXIT_FAILURE);
+	    }
+            //close(fd);
+            // exit(EXIT_FAILURE);
         }
 
         unsigned long millis;
@@ -136,9 +142,15 @@ int main(int argc, char *argv[])
         while ( s_id > 0) {
             if (checkKeyEvent(fd_key, &millis, &s_id, &state) ) {
                 if (s_id > 0) {
-                    printf("%s %s\n", key_name[s_id], status ? "down" : "up");
+                    printf("%s %s\n", key_name[s_id], state ? "down" : "up");
                 }
             }
+            else {
+		if (!reported2) {
+			reported2 = true;
+			printf ("error on keyboard poll\n");
+		}
+	    }
         }
 
         nanosleep(&_500ms, NULL);
