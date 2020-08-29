@@ -19,7 +19,7 @@
  */
 #define I2C_KEYBOARD_ADDRESS 0x39
 
-#define LAMP(x) (1>>x)
+#define LAMP(x) (0x8000>>x)
 #define LAMP_UPLINK_ACTY	LAMP(0)
 #define LAMP_NO_ATT		    LAMP(1)
 #define LAMP_STBY		    LAMP(2)
@@ -98,7 +98,8 @@ int main(int argc, char *argv[])
 
     struct timespec _500ms;
     _500ms.tv_sec = 0;
-    _500ms.tv_nsec = 5000000L;
+    //_500ms.tv_nsec = 5000000L;
+    _500ms.tv_nsec = 500 * 1000000L;
 
     fd = open("/dev/i2c-1", O_RDWR);
     if(fd < 0) {
@@ -126,7 +127,7 @@ int main(int argc, char *argv[])
 
     while (1) {
 
-        if (!setLamps(fd, 0xffff)) {
+        if (!setLamps(fd, lamp)) {
             if (!reported) {
 	        reported = true;
             fprintf(stderr, "Error writing (1)\n");
