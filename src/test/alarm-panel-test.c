@@ -34,7 +34,7 @@
 #define LAMP_VEL            LAMP(13)
 
 const char *key_name[] = {
-    NULL,
+    NULL, // entry 0 does not correspond to an S-key.
     "STBY",
     "KEY REL",
     "ENTR",
@@ -118,7 +118,7 @@ int main(int argc, char *argv[])
     }
     if(ioctl(fd_key, I2C_SLAVE, I2C_KEYBOARD_ADDRESS) < 0) {
         fprintf(stderr, "Error setting slave address\n");
-        close(fd);
+        close(fd_key);
         exit(EXIT_FAILURE);
     }
 
