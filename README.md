@@ -1,19 +1,31 @@
 # The DSKY-matic Project
-### A Functioning DSKY Replica
+A Functioning DSKY Replica - October 2020
 
 ### Why is it called "DSKY-matic"?
 
 Because *"Riley Rainey's Apollo Guidance Computer DSKY Replica Project"* doesn't really roll off the tongue.
 
+![The first DSKY-matic prototype](images/front-early-sm.jpg)
+
 Naming a project is often difficult. In this case it's especially hard, given that there are already a number of replicas of the original Apollo Guidance Computer hardware described on-line. I created this project almost entirely for my own gratification. I wanted to create a replica of the original DSKY that was faithful to the original look and feel. And I wanted to be able to interact with it.  I named it **DSKY-matic** to give everyone else an easy name to use to distinguish this from other efforts. 
 
 DSKY-matic is an open project so that others can reproduce the work or build upon my results.
 
-![The first DSKY-matic prototype](images/front-early-sm.jpg)
+### Components and cloning this project
 
-### Components
+This is designed as a modular hardware and software project. A number of the components are organized as separate sub-projects. Three of those are released by me.  One, a working DSKY EL Display replica, was created by Ben Krasnow of the Applied Science YouTube channel. Because this project includes these submodules, you will need to follow some specific steps to clone the entire tree on your local machine.
 
-This is designed as a modular hardware and software project. A number of the components are organized as separate sub-projects. Three of those are released by me.  One, a working DSKY EL Display replica, was created by Ben Krasnow of the Applied Science YouTube channel.
+First, clone this repository:
+
+        $ git clone https://github.com/rrainey/DSKY-matic.git
+
+Go into the project folder:
+
+        $ cd DSKY-matic
+
+Now clone all submodules:
+
+        $ git submodule update --init --recursive --remote
 
 ### Directory structure
 
