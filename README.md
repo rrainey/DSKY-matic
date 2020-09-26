@@ -5,9 +5,9 @@
 
 Because *"Riley Rainey's Apollo Guidance Computer DSKY Replica Project"* doesn't really roll off the tongue.
 
-Naming a project is often difficult. In this case it's especially hard, given that a number of replicas of the original Apollo Guidance Computer hardware that have appeared recently. I created this project almost entirely for my own gratification. I wanted to create a replica of the original DSKY that was faithful to the original look and feel. And I wanted to be able to interact with it.  I named it **DSKY-matic** to give everyone else an easy name to use to distinguish this work from other efforts. 
+Naming a project is often difficult. In this case it's especially hard, given that there are already a number of replicas of the original Apollo Guidance Computer hardware described on-line. I created this project almost entirely for my own gratification. I wanted to create a replica of the original DSKY that was faithful to the original look and feel. And I wanted to be able to interact with it.  I named it **DSKY-matic** to give everyone else an easy name to use to distinguish this from other efforts. 
 
-I am making it an open project so that others can reproduce the work or build upon my results.
+DSKY-matic is an open project so that others can reproduce the work or build upon my results.
 
 ![The first DSKY-matic prototype](images/front-early-sm.jpg)
 
@@ -17,7 +17,7 @@ This is designed as a modular hardware and software project. A number of the com
 
 ### Directory structure
 
-* **hardware** - 3D-printable frame components designed using Fusion 360. STEP and Fusion source files are available. Hardware models used in thie replica were derived from models found in the [AGC Mechanical CAD project](https://github.com/rrainey/agc-mechanical-cad).
+* **hardware** - 3D-printable frame components designed using Fusion 360. STEP and the original Fusion source files are provided. Hardware models used in thie replica were derived from models found in the [AGC Mechanical CAD project](https://github.com/rrainey/agc-mechanical-cad).
 
 * **software** - software components designed to run on the projects embedded RaspBerry Pi 3/4.  This siftware is a Apollo Guidance Computer virtual machine interfacing to the deisplays and keyboard via I2C and serial communications drivers.
 
