@@ -15,6 +15,8 @@ DSKY-matic is an open project so that others can reproduce the work or build upo
 
 This is designed as a modular hardware and software project. A number of the components are organized as separate sub-projects. Three of those are released by me.  One, a working DSKY EL Display replica, was created by Ben Krasnow of the Applied Science YouTube channel. Because this project includes these submodules, you will need to follow some specific steps to clone the entire tree on your local machine.
 
+![The first DSKY-matic prototype](images/DSKY-matic-blocks.png)
+
 First, clone this repository:
 
         $ git clone https://github.com/rrainey/DSKY-matic.git
