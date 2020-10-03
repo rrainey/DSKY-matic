@@ -4,3 +4,6 @@
 [submodule "DSKY-alarm-panel-replica"]
 	path = DSKY-alarm-panel-replica
 	url = https://github.com/rrainey/DSKY-alarm-panel-replica.git
+[submodule "virtualagc"]
+	path = virtualagc
+	url = https://github.com/rrainey/virtualagc
