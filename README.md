@@ -13,7 +13,7 @@ Because *"Riley Rainey's Apollo Guidance Computer DSKY Replica Project"* doesn't
 
 ![The first DSKY-matic prototype](images/front-early-sm.jpg)
 
-Naming a project is often difficult. In this case it's especially hard: the Apollo Guidance Computer has inspired many replica projects. I wanted to create a replica of the DSKY that was faithful to the original look and feel. And I wanted to be able to interact with it.  I named it **DSKY-matic** to tag it with an easy name distinguishing it from other projects.
+Naming a project is often difficult. In this case it's especially hard: the Apollo Guidance Computer has inspired many replica projects. I wanted to create a replica of the DSKY that was faithful to the original look and feel. And I wanted to be able to interact with it.  I came up with **DSKY-matic** to tag it with an easy name distinguishing it from other projects.
 
 DSKY-matic is an open project so that anyone can reproduce the work or build upon my results.
 
