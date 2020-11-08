@@ -54,7 +54,7 @@ Now clone all submodules:
 
 * **hardware** - 3D-printable frame components designed using Fusion 360. STEP and the original Fusion source files are provided. Hardware models used in thie replica were derived from models found in the [AGC Mechanical CAD project](https://github.com/rrainey/agc-mechanical-cad).
 
-* **software** - software components designed to run on the projects embedded Raspberry Pi 3/4.  This siftware is a Apollo Guidance Computer virtual machine interfacing to the deisplays and keyboard via I2C and serial communications drivers.
+* **software** - software components designed to run on the projects embedded Raspberry Pi 4.  This software is a Apollo Guidance Computer virtual machine interfacing to the deisplays and keyboard via I2C and serial communications drivers.
 
 ### Credits
 
