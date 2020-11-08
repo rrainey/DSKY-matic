@@ -11,6 +11,13 @@ Naming a project is often difficult. In this case it's especially hard: the Apol
 
 DSKY-matic is an open project so that anyone can reproduce the work or build upon my results.
 
+### Components and cloning this project
+
+The Electroluminescent Display, Alarm Panel, and     Keyboard are each modular components. They are driven by a
+  Raspberry Pi 4 to simulate the AGC, but each could be swapped out with equivalent redesigns.
+
+![The first DSKY-matic prototype](images/DSKY-matic-blocks.png)
+
 ### Project Status
 
 Work on the Alarm Panel project is largely complete. The final version of the latest Keyboard PCB remains to be tested, but the V2 board is operating. I2C interfaces and drivers have been sucessfully tested with Raspberry 4 hardware.
@@ -23,14 +30,9 @@ Major to-dos:
 * validate using the Pi's USB-C interface to power the whole project
 * improve the keyboard's pushbutton design - the current version is a rather clunky 3D printed design that could look much more realistic
 
-### Components and cloning this project
+### Cloning
 
-The Electroluminescent Display, Alarm Panel, and     Keyboard are each modular components. They are driven by a
-  Raspberry Pi 4 to simulate the AGC, but each could be swapped out with equivalent redesigns.
-
-![The first DSKY-matic prototype](images/DSKY-matic-blocks.png)
-
-The hardware and firmware for each major component are grouped into three git submodules. You will need to follow some specific steps to clone the entire tree on your local machine. First, clone this repository:
+The hardware and firmware for each major component is segregated into git submodules. You will need to follow some specific steps to clone the entire tree on your local machine. First, clone this repository:
 
         $ git clone https://github.com/rrainey/DSKY-matic.git
 
