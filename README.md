@@ -1,13 +1,19 @@
 # The DSKY-matic Project
 A Functioning Apollo DSKY Replica - November 2020
 
-### Why is it called "DSKY-matic"?
+## Introduction
+
+The Apollo Guidance Compuer (AGC) is one of the critical inventions that made the U.S. moon landings possible. AGC's were installed in both the Apollo Command Module and Lunar Module. MIT and NASA archives, as well as important contributions from researchers have given us a rich set of detail about how this computer was constructed.
+
+Space and computer enthusiasts like me from all over the world have enjoyed exploring this work from the early space era.
+
+### Why is this project called "DSKY-matic"?
 
 Because *"Riley Rainey's Apollo Guidance Computer DSKY Replica Project"* doesn't really roll off the tongue.
 
 ![The first DSKY-matic prototype](images/front-early-sm.jpg)
 
-Naming a project is often difficult. In this case it's especially hard: the Apollo Guidance Computer has inspired many replica projects. This effort was almost entirely for my own gratification. I wanted to create a replica of the original DSKY that was faithful to the original look and feel. And I wanted to be able to interact with it.  I named it **DSKY-matic** to tag it with an easy name distinguishing it from other projects.
+Naming a project is often difficult. In this case it's especially hard: the Apollo Guidance Computer has inspired many replica projects. I wanted to create a replica of the DSKY that was faithful to the original look and feel. And I wanted to be able to interact with it.  I named it **DSKY-matic** to tag it with an easy name distinguishing it from other projects.
 
 DSKY-matic is an open project so that anyone can reproduce the work or build upon my results.
 
