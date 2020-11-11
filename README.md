@@ -17,6 +17,8 @@ Naming a project is often difficult. In this case it's especially hard: the Apol
 
 DSKY-matic is an open project so that anyone can reproduce the work or build upon my results.
 
+![The first DSKY-matic prototype (cover off)](images/cover-off-01.jpg)
+
 ### Components and cloning this project
 
 The Electroluminescent Display, Alarm Panel, and     Keyboard are each modular components. They are driven by a
