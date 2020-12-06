@@ -33,10 +33,9 @@ Work on the Alarm Panel project is largely complete. The final version of the la
 Major to-dos:
 
 * [done] build a new batch of EL Driver boards - I blew out the first driver board while testing a bad E/L display stack
-* [in progress] develop Virtual AGC-friendly hardware drivers for each I/O board
-* adapt Virtual AGC to use these Lamp, Keyboard, and Display drivers
-* validate using the Pi's USB-C interface to power the whole project
-* improve the keyboard's pushbutton design - the current version is a rather clunky 3D printed design that could look much more realistic
+* [done] develop Virtual AGC-friendly hardware drivers for each I/O board
+* [ready to test] adapt Virtual AGC to use these Lamp, Keyboard, and Display drivers
+* [in progress] improve the keyboard's pushbutton design - the current version is a rather clunky 3D printed design that could look much more realistic
 
 ### Cloning
 
