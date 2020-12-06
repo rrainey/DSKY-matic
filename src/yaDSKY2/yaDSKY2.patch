@@ -1,0 +1,80 @@
+diff --git a/yaDSKY2/Makefile b/yaDSKY2/Makefile
+index 021317ee..95704569 100644
+--- a/yaDSKY2/Makefile
++++ b/yaDSKY2/Makefile
+@@ -91,7 +91,7 @@ clean:
+ 	rm -rf temp
+ 	rm -f *~ *.bak ${APPNAME} *.exe *-macosx*
+ 
+-SOURCES:=${APPNAME}.cpp
++SOURCES:=${APPNAME}.cpp DSKYmaticIF.cpp
+ SOURCESc:=\
+ 	../yaAGC/agc_utilities.c \
+ 	../yaAGC/agc_engine.c \
+diff --git a/yaDSKY2/yaDSKY2.cpp b/yaDSKY2/yaDSKY2.cpp
+index 5e0067a3..7a85595b 100644
+--- a/yaDSKY2/yaDSKY2.cpp
++++ b/yaDSKY2/yaDSKY2.cpp
+@@ -115,6 +115,13 @@ FILE *
+ rfopen (const char *Filename, const char *mode);
+ #endif
+ 
++/*
++ * DSKY-matic: include driver interface
++ */
++#include "DSKYmaticIF.h"
++
++static DSKYmaticIF * dmatic = nullptr;
++
+ static MainFrame* MainWindow;
+ int HalfSize = 0;
+ #define PULSE_INTERVAL 80
+@@ -1224,6 +1231,12 @@ yaDskyApp::OnInit ()
+ 
+   DEBUG (-1);
+ 
++  /*
++   * DSKY-matic: initialize interface; open connections to EL Display, Alarm panel, keyboard;
++   */
++  DSKYmaticIF * dmatic = new DSKYmaticIF();
++  dmatic->initialize();
++
+   Portnum = 19697;
+   for (i = 1; i < argc; i++)
+     {
+@@ -1472,6 +1485,20 @@ TimerClass::Notify ()
+ 
+   pulseCount++;
+ 
++  /*
++   * DSKY-matic: 
++   * Since this notification function we're part of is called at a sufficiently large interval (80ms), we don't
++   * have to worry about sending output so often that we overload the bandwidth of the outbound communications 
++   * serial lines. The EL Display takes the most clock time to update. That USB serical interface runs at 9600bps; 
++   * the 25 byte update packet requires ~40ms to transmit, so we have some room here.
++   */
++  if (dmatic != nullptr) {
++    dmatic->updateFlashingState(PULSE_INTERVAL);
++    dmatic->updateELDisplay();
++    dmatic->updateAlarmStatusPanel();
++    dmatic->checkKeyboard();
++  }
++
+ #if 0 
+   // Just a preliminary debugging thing, to check out how well bitmap
+   // replacement works. 
+@@ -1793,6 +1820,14 @@ TimerClass::ActOnIncomingIO (unsigned char *Packet)
+       // restore the values afterward.
+       if (uBit == 0)
+ 	{
++
++    /*
++     * DSKY-matic: if the driver is present, call it.
++     */
++    if (dmatic != nullptr) {
++      dmatic->processIncomingChannel(Channel, Value, uBit);
++    }
++
+ 	  switch (Channel)
+ 	    {
+ 	    case 010:
