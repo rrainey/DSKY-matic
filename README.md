@@ -57,9 +57,13 @@ Now clone all submodules:
 
 * **src** - software components designed to run on the project's embedded Raspberry Pi 4.  This software is a Apollo Guidance Computer virtual machine interfacing to the displays and keyboard via I2C and USB serial communications drivers.
 
+### Arduino-based Drivers
+
+The peripheral boards for DSKY-matic run Arduino-based software. These drivers were developed using Arduino IDE 1.8.13.  When you are ready, you'll use the Arduino IDE to build and install the driver onto a board. Custom DSKY-matic Arduino board definitions will be required. These must be installed in your Arduino IDE. An excellent guide to this process is described at this [Adafruit help page](https://learn.adafruit.com/add-boards-arduino-v164/setup). At the point in the steps where you are supplying "Additional Boards Manager URLs" use this: https://github.com/rrainey/ArduinoCore-samd/releases/download/x1.0.0/package_rrainey_dskymatic_index.json 
+
 ### Credits
 
-This work would not have been possible without the generous and open work of these projects:
+This project would not have been possible without the generous and open work of these projects:
 
 * [The Virtual AGC Project](https://www.ibiblio.org/apollo/) -- Ron Burkey and others have worked for years to build software emulator of the AGC hardware, supporting developments tools, a collection of original NASA and MIT documents, as well as an archive of transcribed original CM and LEM programs.
 * [Adafruit Industries](https://www.adafruit.com/) -- Lady Yada and others have produced a great line of hobbyist microcontrollers and supporting programming tools. They deserve your support.
