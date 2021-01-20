@@ -59,7 +59,34 @@ Now clone all submodules:
 
 ### Arduino-based Drivers
 
-The peripheral boards for DSKY-matic run Arduino-based software. These drivers were developed using Arduino IDE 1.8.13.  When you are ready, you'll use the Arduino IDE to build and install the driver onto a board. Custom DSKY-matic Arduino board definitions will be required. These must be installed in your Arduino IDE. An excellent guide to this process is described at this [Adafruit help page](https://learn.adafruit.com/add-boards-arduino-v164/setup). At the point in the steps where you are supplying "Additional Boards Manager URLs" use this: https://github.com/rrainey/ArduinoCore-samd/releases/download/x1.0.0/package_rrainey_dskymatic_index.json 
+### Configuring Boards
+
+The peripheral boards for DSKY-matic run Arduino-based software. When you have a board ready for software installation, you'll use the Arduino IDE to build and install the driver onto a board. Custom DSKY-matic Arduino board definitions help with this process.
+
+There's a few steps leading up to this installation that you'll need to follow first:
+
+1. **Build uf2 bootloaders for each board** - these bootloaders are used to install Arduino firmware drivers on each board
+
+```
+git clone https://github.com/rrainey/uf2-samdx1
+cd uf2-samdx1
+make BOARD=dskydisplay_led_m0
+make BOARD=dskyalarm_m0
+make BOARD=dskykeyboard_m0
+```
+
+These steps will build uf2 files in a `build` subfolder.
+
+2. **Install the bootloader** - Bootloaders can be installed by following the procedure outlined in this [Adafruit article](https://learn.adafruit.com/how-to-program-samd-bootloaders). The DSKY-matic Keyboard and LED Display boards are equipped with ATSAMD JTAG/SWD connectors.  Those boards can have the bootloader installed directly using a SEGGER J-Link Edu Mini interface as described in the article.  For the Alarm board, I followed Ben's technique of cannibalizing
+  the SAMD processor from a Trinket M0 to install on the board.  The advantage there is that the bootloader is already installed.  You can follow that approach as well, or connect the SWD line up directly and program via a SEGGER interface too.
+
+3. **Install the Arduino IDE** -
+Install the Arduino IDE. I'm currently using version 1.8.13.
+
+4. **Install the Arduino board definitions** -
+These must be installed in your Arduino IDE. An excellent guide to this process is described at this [Adafruit help page](https://learn.adafruit.com/add-boards-arduino-v164/setup). At the point in the steps where you are supplying "Additional Boards Manager URLs" use this URL: `https://github.com/rrainey/ArduinoCore-samd/releases/download/x1.0.0/package_rrainey_dskymatic_index.json`
+
+5. **Connect a board via USB, Build and install the appropriate firmware driver** -- I'll add more detailed instructions here soon, but the firmware is located in the GitHub repo for each board project.
 
 ### Credits
 
