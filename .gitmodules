@@ -7,3 +7,6 @@
 [submodule "virtualagc"]
 	path = virtualagc
 	url = https://github.com/rrainey/virtualagc
+[submodule "DSKY-digital-indicator-replica"]
+	path = DSKY-digital-indicator-replica
+	url = https://github.com/rrainey/DSKY-digital-indicator-replica
