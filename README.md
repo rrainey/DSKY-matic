@@ -32,10 +32,10 @@ Work on the Alarm Panel project is largely complete. The final version of the la
 
 Major to-dos:
 
-* [done] build a new batch of EL Driver boards - I blew out the first driver board while testing a bad E/L display stack
-* [done] develop Virtual AGC-friendly hardware drivers for each I/O board
-* [ready to test] adapt Virtual AGC to use these Lamp, Keyboard, and Display drivers
-* [in progress] improve the keyboard's pushbutton design - the current version is a rather clunky 3D printed design that could look much more realistic
+* [done] adapt Virtual AGC to use these Lamp, Keyboard, and Display drivers
+* [done] improve the keyboard's pushbutton design - the current version is a rather clunky 3D printed design that could look much more realistic
+* [in progress] design and test an alternative to the original Electroluminescent Display module. This alternatate modules uses LEDs in place of the EL display.  It's easier to build and may be more reliable over time.
+* [in progress] build a new batch of of the new (current limited) EL Driver boards
 
 ### Cloning
 
