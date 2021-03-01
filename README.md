@@ -32,10 +32,10 @@ Work on the Alarm Panel project is largely complete. The final version of the la
 
 Major to-dos:
 
-* [done] adapt Virtual AGC to use these Lamp, Keyboard, and Display drivers
-* [done] improve the keyboard's pushbutton design - the current version is a rather clunky 3D printed design that could look much more realistic
-* [in progress] design and test an alternative to the original Electroluminescent Display module. This alternatate modules uses LEDs in place of the EL display.  It's easier to build and may be more reliable over time.
-* [in progress] build a new batch of of the new (current limited) EL Driver boards
+* [**done**] adapt Virtual AGC to use these Lamp, Keyboard, and Display drivers
+* [**done**] improve the keyboard's pushbutton design - the current version is a rather clunky 3D printed design that could look much more realistic
+* [**in progress**] design and test an alternative to the original Electroluminescent Display module. This alternatate modules uses LEDs in place of the EL display.  It's easier to build and may be more reliable over time.
+* [**in progress**] build a new batch of of the new (current limited) EL Driver boards
 
 ### Cloning
 
@@ -57,7 +57,15 @@ Now clone all submodules:
 
 * **src** - software components designed to run on the project's embedded Raspberry Pi 4.  This software is a Apollo Guidance Computer virtual machine interfacing to the displays and keyboard via I2C and USB serial communications drivers.
 
-### Arduino-based Drivers
+* **DSKY-alarm-panel-replica** - definition of the Alarm Panel hardware and software
+
+* **DSKY-digital-indicator-replica** - definition an alternative to the EL Display Panel; this is based on LEDs
+
+* **DSKY-keyboard-replica** - definition of the Keyboard hardware and software
+
+* **virualagc** - Ron Burkey's Virtual AGC software; runs on the Raspberry Pi 4 in this implementation
+
+## Arduino-based Drivers
 
 ### Configuring Boards
 
@@ -65,7 +73,7 @@ The peripheral boards for DSKY-matic run Arduino-based software. When you have a
 
 There's a few steps leading up to this installation that you'll need to follow first:
 
-1. **Build uf2 bootloaders for each board** - these bootloaders are used to install Arduino firmware drivers on each board
+1. **Build bootloaders for each board** - these bootloaders are used to install Arduino firmware drivers on each board
 
 ```
 git clone https://github.com/rrainey/uf2-samdx1
@@ -75,7 +83,7 @@ make BOARD=dskyalarm_m0
 make BOARD=dskykeyboard_m0
 ```
 
-These steps will build uf2 files in a `build` subfolder.
+These steps will build bin and uf2 files in a `build` subfolder.
 
 2. **Install the bootloader** - Bootloaders can be installed by following the procedure outlined in this [Adafruit article](https://learn.adafruit.com/how-to-program-samd-bootloaders). The DSKY-matic Keyboard and LED Display boards are equipped with ATSAMD JTAG/SWD connectors.  Those boards can have the bootloader installed directly using a SEGGER J-Link Edu Mini interface as described in the article.  For the Alarm board, I followed Ben's technique of cannibalizing
   the SAMD processor from a Trinket M0 to install on the board.  The advantage there is that the bootloader is already installed.  You can follow that approach as well, or connect the SWD line up directly and program via a SEGGER interface too.
