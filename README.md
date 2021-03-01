@@ -35,7 +35,7 @@ Major to-dos:
 * [**done**] adapt Virtual AGC to use these Lamp, Keyboard, and Display drivers
 * [**done**] improve the keyboard's pushbutton design - the current version is a rather clunky 3D printed design that could look much more realistic
 * [**in progress**] design and test an alternative to the original Electroluminescent Display module. This alternate assembly uses LEDs in place of the EL display.  It's easier to build and may be more reliable over time - if not as cool.
-* [**in progress**] build a new batch of of the new (current limited) EL Driver boards
+* [**in progress**] build and test batch of the revised (current limited) EL Driver boards
 
 ### Cloning
 
