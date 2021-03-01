@@ -57,13 +57,13 @@ Now clone all submodules:
 
 * **src** - software components designed to run on the project's embedded Raspberry Pi 4.  This software is a Apollo Guidance Computer virtual machine interfacing to the displays and keyboard via I2C and USB serial communications drivers.
 
-* **DSKY-alarm-panel-replica** - definition of the Alarm Panel hardware and software
+* **DSKY-alarm-panel-replica** - definition of the Alarm Panel hardware and software assembly
 
-* **DSKY-digital-indicator-replica** - definition an alternative to the EL Display Panel; this is based on LEDs
+* **DSKY-digital-indicator-replica** - definition an alternative to the EL Display Panel; this variant is based on LEDs
 
-* **DSKY-keyboard-replica** - definition of the Keyboard hardware and software
+* **DSKY-keyboard-replica** - definition of the Keyboard hardware and software assembly
 
-* **virualagc** - Ron Burkey's Virtual AGC software; runs on the Raspberry Pi 4 in this implementation
+* **virtualagc** - Ron Burkey's Virtual AGC software; runs on the Raspberry Pi 4 in this implementation
 
 ## Arduino-based Drivers
 
