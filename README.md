@@ -1,5 +1,5 @@
 # The DSKY-matic Project
-A Functioning Apollo DSKY Replica - March 2021
+A Functioning Apollo DSKY Replica - September 2022
 
 ## Introduction
 
@@ -34,7 +34,7 @@ Major to-dos:
 
 * [**done**] adapt Virtual AGC to use these Lamp, Keyboard, and Display drivers
 * [**done**] improve the keyboard's pushbutton design - the current version is a rather clunky 3D printed design that could look much more realistic
-* [**in progress**] design and test an alternative to the original Electroluminescent Display module. This alternate assembly uses LEDs in place of the EL display.  It's easier to build and may be more reliable over time - if not as cool.
+* [**done**] design and test an alternative to the original Electroluminescent Display module. This alternate assembly uses LEDs in place of the EL display.  It's easier to build and may be more reliable over time - if not as cool.
 * [**in progress**] build and test batch of the revised (current limited) EL Driver boards
 
 ### Cloning
@@ -66,6 +66,8 @@ Now clone all submodules:
 * **virtualagc** - Ron Burkey's Virtual AGC software; runs on the Raspberry Pi 4 in this implementation
 
 ## Arduino-based Drivers
+
+The custom hardware boards that are part of this project all run Arduino-based firmware on ATSAMD21 processors.
 
 ### Configuring Boards
 
