@@ -10,3 +10,6 @@
 [submodule "DSKY-digital-indicator-replica"]
 	path = DSKY-digital-indicator-replica
 	url = https://github.com/rrainey/DSKY-digital-indicator-replica
+[submodule "Pi-Power"]
+	path = Pi-Power
+	url = https://github.com/rrainey/Pi-Power
