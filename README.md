@@ -1,5 +1,5 @@
 # The DSKY-matic Project
-A Functioning Apollo DSKY Replica - September 2022
+A Functioning Apollo DSKY Replica - October 2022
 
 ## Introduction
 
@@ -21,21 +21,24 @@ DSKY-matic is an open project so that anyone can reproduce the work or build upo
 
 ### Components and cloning this project
 
-The Electroluminescent Display, Alarm Panel, and     Keyboard are each modular components. They are driven by a
-  Raspberry Pi 4 to simulate the AGC, but each could be swapped out with equivalent redesigns.
+The EL or LED Displays, Alarm Panel, and Keyboard are each modular components. They are driven by a
+  Raspberry Pi 4 to simulate the AGC, but each could be swapped out with equivalent redesigns. A
+  Power Supply Hat mates with the Raspberry Pi 4 to distribute +5V and +3.3V power to all boards.
 
-![The first DSKY-matic prototype](images/DSKY-matic-blocks.png)
+![The first DSKY-matic prototype](images/DSKY-matic-LED-blocks.png)
 
 ### Project Status
 
-Work on the Alarm Panel project is largely complete. The final version of the latest Keyboard PCB remains to be tested, but the V2 board is operating. I2C interfaces and drivers have been sucessfully tested with Raspberry 4 hardware.
+Hardware work is complete. I'm working on a distributable version of the full simulator software.
 
 Major to-dos:
 
-* [**done**] adapt Virtual AGC to use these Lamp, Keyboard, and Display drivers
-* [**done**] improve the keyboard's pushbutton design - the current version is a rather clunky 3D printed design that could look much more realistic
-* [**done**] design and test an alternative to the original Electroluminescent Display module. This alternate assembly uses LEDs in place of the EL display.  It's easier to build and may be more reliable over time - if not as cool.
-* [**in progress**] build and test batch of the revised (current limited) EL Driver boards
+* [**complete**] adapt Virtual AGC to use these Lamp, Keyboard, and Display drivers
+* [**complete**] improve the keyboard's pushbutton design - the current version is a rather clunky 3D printed design that could look much more realistic
+* [**complete**] design and test an alternative to the original Electroluminescent Display module. This alternate assembly uses LEDs in place of the EL display.  It's easier to build and may be more reliable over time - if not as cool.
+* [**complete**] build and test batch of the revised (current limited) EL Driver boards
+* [**complete**] test fully integrated DSKY hardware and software driver configuration
+* [**in progress**] Integrated AGC and spacecraft simulator software
 
 ### Cloning
 
@@ -62,6 +65,8 @@ Now clone all submodules:
 * **DSKY-digital-indicator-replica** - definition an alternative to the EL Display Panel; this variant is based on LEDs
 
 * **DSKY-keyboard-replica** - definition of the Keyboard hardware and software assembly
+
+* **Pi-Power** - power supply hat for the Raspberry Pi 4
 
 * **virtualagc** - Ron Burkey's Virtual AGC software; runs on the Raspberry Pi 4 in this implementation
 
