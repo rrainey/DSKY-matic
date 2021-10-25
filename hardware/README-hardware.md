@@ -1,6 +1,6 @@
 ## Mounting Hardware
 
-Inserts are used with the two mouning bases and the Pi mouning bracket. I place ultrasonic style inserts using a C-clamp to screw-down each insert into place.
+Inserts are used with the two mounting base legs and the Pi mounting bracket. I install ultrasonic style inserts using a C-clamp to screw-down each insert into place.
 
 Components can be ordered from Grainger.com:
 
