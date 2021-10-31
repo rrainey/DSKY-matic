@@ -103,6 +103,46 @@ These must be installed in your Arduino IDE. An excellent guide to this process 
 
 5. **Connect a board via USB, Build and install the appropriate firmware driver** -- I'll add more detailed instructions here soon, but the firmware is located in the GitHub repo for each board project.
 
+### Sound setup on the Raspberry Pi 4
+
+There's a bit of set up required to play sound from the ALSA drivers. The aplay and
+amixer commands are used here to set the volume from the command line:
+
+<pre>
+<b>$ aplay -L</b>
+null
+    Discard all samples (playback) or generate zero samples (capture)
+pulse
+    Playback/recording through the PulseAudio sound server
+sysdefault:CARD=ALSA
+    bcm2835 ALSA, bcm2835 ALSA
+    Default Audio Device
+<b>$ amixer</b>
+Simple mixer control 'Master',0
+    Capabilities: pvolume pswitch pswitch-joined penum
+    Playback channels: Front Left - Front Right
+    Limits: Playback 0 - 65536
+    Mono:
+    Front Left: Playback 65536 [100%] [on]
+    Front Right: Playback 65536 [100%] [on]
+Simple mixer control 'Capture',0
+    Capabilities: cvolume cswitch cswitch-joined penum
+    Capture channels: Front Left - Front Right
+    Limits: Capture 0 - 65536
+    Front Left: Capture 0 [0%] [on]
+    Front Right: Capture 0 [0%] [on]
+<b>$ amixer controls</b>
+numid=4,iface=MIXER,name='Master Playback Switch'
+numid=3,iface=MIXER,name='Master Playback Volume'
+numid=2,iface=MIXER,name='Capture Switch'
+numid=1,iface=MIXER,name='Capture Volume'
+<b>$ amixer cset numid=3 50%</b>
+numid=3,iface=MIXER,name='Master Playback Volume'
+  ; type=INTEGER,access=rw------,values=2,min=0,max=65536,step=1
+  : values=32768,32768
+</pre>
+
+
 ### Credits
 
 This project would not have been possible without the generous and open work of these projects:
