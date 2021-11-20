@@ -1,5 +1,5 @@
 # The DSKY-matic Project
-A Functioning Apollo DSKY Replica - October 2022
+A Functioning Apollo DSKY Replica - October 2021
 
 ## Introduction
 
