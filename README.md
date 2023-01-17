@@ -26,6 +26,8 @@ The Electroluminescent Display, Alarm Panel, and     Keyboard are each modular c
 
 ![The first DSKY-matic prototype](images/DSKY-matic-blocks.png)
 
+You will find more information about interconnections and cabling in [this document](ASSEMBLY.md)
+
 ### Project Status
 
 Work on the Alarm Panel project is largely complete. The final version of the latest Keyboard PCB remains to be tested, but the V2 board is operating. I2C interfaces and drivers have been sucessfully tested with Raspberry 4 hardware.
