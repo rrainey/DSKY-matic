@@ -1,5 +1,5 @@
 # The DSKY-matic Project
-A Functioning Apollo DSKY Replica - September 2022
+A Functioning Apollo DSKY Replica - October 2021
 
 ## Introduction
 
@@ -21,23 +21,26 @@ DSKY-matic is an open project so that anyone can reproduce the work or build upo
 
 ### Components and cloning this project
 
-The Electroluminescent Display, Alarm Panel, and     Keyboard are each modular components. They are driven by a
-  Raspberry Pi 4 to simulate the AGC, but each could be swapped out with equivalent redesigns.
+The EL or LED Displays, Alarm Panel, and Keyboard are each modular components. They are driven by a
+  Raspberry Pi 4 to simulate the AGC, but each could be swapped out with equivalent redesigns. A
+  Power Supply Hat mates with the Raspberry Pi 4 to distribute +5V and +3.3V power to all boards.
 
-![The first DSKY-matic prototype](images/DSKY-matic-blocks.png)
+![The first DSKY-matic prototype](images/DSKY-matic-LED-blocks.png)
 
 You will find more information about interconnections and cabling in [this document](ASSEMBLY.md)
 
 ### Project Status
 
-Work on the Alarm Panel project is largely complete. The final version of the latest Keyboard PCB remains to be tested, but the V2 board is operating. I2C interfaces and drivers have been sucessfully tested with Raspberry 4 hardware.
+Hardware work is complete. I'm working on a distributable version of the full simulator software.
 
 Major to-dos:
 
-* [**done**] adapt Virtual AGC to use these Lamp, Keyboard, and Display drivers
-* [**done**] improve the keyboard's pushbutton design - the current version is a rather clunky 3D printed design that could look much more realistic
-* [**done**] design and test an alternative to the original Electroluminescent Display module. This alternate assembly uses LEDs in place of the EL display.  It's easier to build and may be more reliable over time - if not as cool.
-* [**in progress**] build and test batch of the revised (current limited) EL Driver boards
+* [**complete**] adapt Virtual AGC to use these Lamp, Keyboard, and Display drivers
+* [**complete**] improve the keyboard's pushbutton design - the current version is a rather clunky 3D printed design that could look much more realistic
+* [**complete**] design and test an alternative to the original Electroluminescent Display module. This alternate assembly uses LEDs in place of the EL display.  It's easier to build and may be more reliable over time - if not as cool.
+* [**complete**] build and test batch of the revised (current limited) EL Driver boards
+* [**complete**] test fully integrated DSKY hardware and software driver configuration
+* [**in progress**] Integrated AGC and spacecraft simulator software
 
 ### Cloning
 
@@ -64,6 +67,8 @@ Now clone all submodules:
 * **DSKY-digital-indicator-replica** - definition an alternative to the EL Display Panel; this variant is based on LEDs
 
 * **DSKY-keyboard-replica** - definition of the Keyboard hardware and software assembly
+
+* **Pi-Power** - power supply hat for the Raspberry Pi 4
 
 * **virtualagc** - Ron Burkey's Virtual AGC software; runs on the Raspberry Pi 4 in this implementation
 
@@ -99,6 +104,46 @@ Install the Arduino IDE. I'm currently using version 1.8.13.
 These must be installed in your Arduino IDE. An excellent guide to this process is described at this [Adafruit help page](https://learn.adafruit.com/add-boards-arduino-v164/setup). At the point in the steps where you are supplying "Additional Boards Manager URLs" use this URL: `https://github.com/rrainey/ArduinoCore-samd/releases/download/x1.0.0/package_rrainey_dskymatic_index.json`
 
 5. **Connect a board via USB, Build and install the appropriate firmware driver** -- I'll add more detailed instructions here soon, but the firmware is located in the GitHub repo for each board project.
+
+### Sound setup on the Raspberry Pi 4
+
+There's a bit of set up required to play sound from the ALSA drivers. The aplay and
+amixer commands are used here to set the volume from the command line:
+
+<pre>
+<b>$ aplay -L</b>
+null
+    Discard all samples (playback) or generate zero samples (capture)
+pulse
+    Playback/recording through the PulseAudio sound server
+sysdefault:CARD=ALSA
+    bcm2835 ALSA, bcm2835 ALSA
+    Default Audio Device
+<b>$ amixer</b>
+Simple mixer control 'Master',0
+    Capabilities: pvolume pswitch pswitch-joined penum
+    Playback channels: Front Left - Front Right
+    Limits: Playback 0 - 65536
+    Mono:
+    Front Left: Playback 65536 [100%] [on]
+    Front Right: Playback 65536 [100%] [on]
+Simple mixer control 'Capture',0
+    Capabilities: cvolume cswitch cswitch-joined penum
+    Capture channels: Front Left - Front Right
+    Limits: Capture 0 - 65536
+    Front Left: Capture 0 [0%] [on]
+    Front Right: Capture 0 [0%] [on]
+<b>$ amixer controls</b>
+numid=4,iface=MIXER,name='Master Playback Switch'
+numid=3,iface=MIXER,name='Master Playback Volume'
+numid=2,iface=MIXER,name='Capture Switch'
+numid=1,iface=MIXER,name='Capture Volume'
+<b>$ amixer cset numid=3 50%</b>
+numid=3,iface=MIXER,name='Master Playback Volume'
+  ; type=INTEGER,access=rw------,values=2,min=0,max=65536,step=1
+  : values=32768,32768
+</pre>
+
 
 ### Credits
 
