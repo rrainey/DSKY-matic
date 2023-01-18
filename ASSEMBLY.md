@@ -44,3 +44,4 @@ How can you get the best results 3D printing the hardware components?  Of availa
 |1| [Insert: M2.5 Internal Thread Size, Item # 1GRL4 (package of 100)](https://www.grainger.com/product/GRAINGER-APPROVED-Ultrasonic-Insert-M2-5-x-0-1GRL4) | -    |
 
 NOTE: This BOM is currently incomplete, it does not list all required cable assemblies, inserts, or fasteners.
+A current McMaster/Carr fastener shopping list can be found in [fasteners.csv](fasteners.csv)
