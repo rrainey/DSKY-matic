@@ -27,6 +27,8 @@ The EL or LED Displays, Alarm Panel, and Keyboard are each modular components. T
 
 ![The first DSKY-matic prototype](images/DSKY-matic-LED-blocks.png)
 
+You will find more information about interconnections and cabling in [this document](ASSEMBLY.md)
+
 ### Project Status
 
 Hardware work is complete. I'm working on a distributable version of the full simulator software.
