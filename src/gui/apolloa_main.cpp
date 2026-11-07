@@ -363,10 +363,12 @@ static void drain_agc_channel_output() {
 
         }
     }
+#ifdef debug
     if ((total / 500) > ((total - 1) / 500)) {
         std::fprintf(stderr, "agc_out totals: ch010=%d ch011=%d other=%d\n",
                      seen_010, seen_011, seen_other);
     }
+#endif
 }
 
 static void display() {
@@ -551,18 +553,18 @@ static void mouse(int button, int state, int mx, int my) {
         }
         ChannelIOOperation op(b->channel, b->down_value, b->mask);
         g_AGCChannelInputQueue.push_back(op);
-        std::fprintf(stderr, "pick DOWN: %s -> ch=%o val=%o mask=%o\n",
-                     g_hit_down->name.c_str(),
-                     b->channel, b->down_value, b->mask);
+        //std::fprintf(stderr, "pick DOWN: %s -> ch=%o val=%o mask=%o\n",
+        //             g_hit_down->name.c_str(),
+        //             b->channel, b->down_value, b->mask);
     } else if (state == GLUT_UP) {
         if (!g_hit_down) return;
         const KeyBinding *b = find_binding(g_hit_down->name);
         if (b && b->up_value != K_NO_UP) {
             ChannelIOOperation op(b->channel, b->up_value, b->mask);
             g_AGCChannelInputQueue.push_back(op);
-            std::fprintf(stderr, "pick UP:   %s -> ch=%o val=%o mask=%o\n",
-                         g_hit_down->name.c_str(),
-                         b->channel, b->up_value, b->mask);
+            //std::fprintf(stderr, "pick UP:   %s -> ch=%o val=%o mask=%o\n",
+            //            g_hit_down->name.c_str(),
+            //           b->channel, b->up_value, b->mask);
         }
         g_hit_down = nullptr;
     }

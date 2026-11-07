@@ -101,8 +101,8 @@ struct SceneNode {
 class Scene {
 public:
     // Ortho canvas size.
-    int width = 1200;
-    int height = 800;
+    int width = 2000;
+    int height = 1200;
     std::string title = "ApolloA";
 
     TexturePalette textures;
