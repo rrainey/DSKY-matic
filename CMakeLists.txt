@@ -20,6 +20,26 @@ add_subdirectory(Apollo-Saturn-IB EXCLUDE_FROM_ALL)
 set(SATURN_IB_DATA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Apollo-Saturn-IB/data
     CACHE PATH "Apollo-Saturn-IB runtime data (ROM, PAD loads, downlink TSVs)")
 
+set(DSKYMATIC_AUDIO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/audio
+    CACHE PATH "DSKY-matic audio assets (relay clicks, etc.)")
+
+# ---------------------------------------------------------------------------
+# dskymatic_audio: OpenAL+alut sound wrapper, vendored from ~/src/dsky-hw
+# (dso_core — SoundManager / SoundSource / Sound).  Used by any mode that
+# plays audio; currently relay clicks fired by the DSKY ch010 dispatch.
+# ---------------------------------------------------------------------------
+option(DSKYMATIC_AUDIO "Build audio library (needs libopenal-dev + libalut-dev)" ON)
+
+if(DSKYMATIC_AUDIO)
+    add_library(dskymatic_audio STATIC
+        src/audio/Sound.cpp
+        src/audio/SoundSource.cpp
+        src/audio/SoundManager.cpp
+    )
+    target_include_directories(dskymatic_audio PUBLIC src/audio)
+    target_link_libraries(dskymatic_audio PUBLIC openal alut)
+endif()
+
 # ---------------------------------------------------------------------------
 # dskymatic_core: shared panel/scene/pick/render + texture loader.
 # Independent of the AGC bridge; usable by any mode that opens a GL window.
@@ -30,6 +50,7 @@ add_library(dskymatic_core STATIC
     src/core/panel_scene.cpp
     src/core/panel_texture.cpp
     src/core/stb_image_impl.cpp
+    src/core/dsky_click.cpp
 )
 target_include_directories(dskymatic_core PUBLIC
     src/core
@@ -37,6 +58,12 @@ target_include_directories(dskymatic_core PUBLIC
     Apollo-Saturn-IB/third_party/stb
 )
 target_link_libraries(dskymatic_core PUBLIC saturnib saturnib_cmc)
+if(DSKYMATIC_AUDIO)
+    target_link_libraries(dskymatic_core PUBLIC dskymatic_audio)
+    target_compile_definitions(dskymatic_core PUBLIC DSKYMATIC_AUDIO=1)
+    target_compile_definitions(dskymatic_core PRIVATE
+        DSKYMATIC_AUDIO_DIR="${DSKYMATIC_AUDIO_DIR}")
+endif()
 
 find_package(OpenGL REQUIRED)
 find_package(GLUT   REQUIRED)

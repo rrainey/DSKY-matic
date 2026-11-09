@@ -7,6 +7,7 @@
 #include "panel_render.h"
 #include "panel_scene.h"
 #include "panel_texture.h"
+#include "dsky_click.h"
 
 #include <SaturnStartupHelper.h>
 #include <SaturnIBStack.h>
@@ -350,6 +351,7 @@ static void drain_agc_channel_output() {
             }
 #endif
             process_010(op.m_usValue);
+            dsky_click::on_ch010(op.m_usValue);
         }
         else if (op.m_usChannel == 011) { process_011(op.m_usValue); ++seen_011; }
         else {
@@ -637,6 +639,10 @@ int main(int argc, char **argv) {
             std::fprintf(stderr, "sim: Colossus249.bin OK (%ld bytes)\n", sz);
         }
     }
+
+    // Relay-click audio (OpenAL+alut, per-bank).  Non-fatal if it fails —
+    // the sim just runs silently.
+    dsky_click::init();
 
     g_last_tick = std::chrono::steady_clock::now();
 
