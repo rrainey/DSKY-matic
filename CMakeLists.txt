@@ -51,6 +51,7 @@ add_library(dskymatic_core STATIC
     src/core/panel_texture.cpp
     src/core/stb_image_impl.cpp
     src/core/dsky_click.cpp
+    src/core/dsky_dispatch.cpp
 )
 target_include_directories(dskymatic_core PUBLIC
     src/core
@@ -79,5 +80,30 @@ target_link_libraries(dskymatic_core PUBLIC OpenGL::GL OpenGL::GLU GLUT::GLUT)
 #   panel    — GL window with FDAI + scenario only; DSKY on hardware.
 #   headless — no GL; hardware DSKY only.
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# dskymatic_hardware: DSKY-matic hardware driver abstraction.
+# Interface in IDskyHardware.h; StderrDskyHardware prints updates to
+# stderr (useful without a real DSKY-matic attached, and the default
+# driver until a real Pi GPIO/serial driver is ported from ~/src/dsky-hw).
+# No GL dependency.
+# ---------------------------------------------------------------------------
+add_library(dskymatic_hardware STATIC
+    src/hardware/StderrDskyHardware.cpp
+)
+target_include_directories(dskymatic_hardware PUBLIC src/hardware)
+target_link_libraries(dskymatic_hardware PUBLIC dskymatic_core)
+
 add_executable(dskymatic-studio src/modes/studio_main.cpp)
 target_link_libraries(dskymatic-studio PRIVATE dskymatic_core)
+
+# dskymatic-headless: mode 1.  No GL/GLUT link; drives hardware via
+# IDskyHardware (default StderrDskyHardware prints to stderr).
+add_executable(dskymatic-headless src/modes/headless_main.cpp)
+target_link_libraries(dskymatic-headless PRIVATE
+    dskymatic_hardware
+    saturnib
+    saturnib_cmc
+)
+if(DSKYMATIC_AUDIO)
+    target_link_libraries(dskymatic-headless PRIVATE dskymatic_audio)
+endif()

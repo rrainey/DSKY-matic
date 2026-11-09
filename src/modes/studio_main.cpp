@@ -8,6 +8,8 @@
 #include "panel_scene.h"
 #include "panel_texture.h"
 #include "dsky_click.h"
+#include "dsky_dispatch.h"
+#include "dsky_display_sink.h"
 
 #include <SaturnStartupHelper.h>
 #include <SaturnIBStack.h>
@@ -173,24 +175,6 @@ static void update_fdai_from_sim() {
 // DSKYELSegmentClass::DisplayValue body in the generated source.
 // -----------------------------------------------------------------------
 
-// The AGC channel encodes each digit as a 5-bit pattern that isn't 0-9;
-// this table matches DecodeDigit in ApolloA.cpp.
-static int decode_digit(int enc) {
-    switch (enc) {
-        case 21: return 0;
-        case  3: return 1;
-        case 25: return 2;
-        case 27: return 3;
-        case 15: return 4;
-        case 30: return 5;
-        case 28: return 6;
-        case 19: return 7;
-        case 29: return 8;
-        case 31: return 9;
-        default: return -1;
-    }
-}
-
 // 7-segment truth table for digits -1..9.  Segment order matches the
 // dsky_segment.json polygon names: UC UR LR LC LL UL C.
 static const bool k_seg_table[11][7] = {
@@ -237,65 +221,9 @@ static void dsky_set_light(const std::string &name, bool visible) {
     if (n) n->visible = visible;
 }
 
-// Sign-state tracking per Bank1/2/3 -- Process010Command sets the "+"
-// or "-" bit alternately and we combine them into an int for
-// dsky_set_sign.
-static bool g_r1p = false, g_r1m = false;
-static bool g_r2p = false, g_r2m = false;
-static bool g_r3p = false, g_r3m = false;
-static int sign_value(bool plus, bool minus) {
-    if (plus && !minus) return +1;
-    if (minus && !plus) return -1;
-    return 0;
-}
-
-static void process_010(unsigned short w) {
-    int cmd  = (w >> 11) & 037;
-    int nw1  = (w >>  5) & 037;
-    int nw2  =  w        & 037;
-    bool flg = (w & (1 << 10)) != 0;
-
-    switch (cmd) {
-    case  1: g_r3m = flg; dsky_set_sign("R3S", sign_value(g_r3p, g_r3m));
-             dsky_set_digit("R3D4", decode_digit(nw1));
-             dsky_set_digit("R3D5", decode_digit(nw2)); break;
-    case  2: g_r3p = flg; dsky_set_sign("R3S", sign_value(g_r3p, g_r3m));
-             dsky_set_digit("R3D2", decode_digit(nw1));
-             dsky_set_digit("R3D3", decode_digit(nw2)); break;
-    case  3: dsky_set_digit("R2D5", decode_digit(nw1));
-             dsky_set_digit("R3D1", decode_digit(nw2)); break;
-    case  4: g_r2m = flg; dsky_set_sign("R2S", sign_value(g_r2p, g_r2m));
-             dsky_set_digit("R2D3", decode_digit(nw1));
-             dsky_set_digit("R2D4", decode_digit(nw2)); break;
-    case  5: g_r2p = flg; dsky_set_sign("R2S", sign_value(g_r2p, g_r2m));
-             dsky_set_digit("R2D1", decode_digit(nw1));
-             dsky_set_digit("R2D2", decode_digit(nw2)); break;
-    case  6: g_r1m = flg; dsky_set_sign("R1S", sign_value(g_r1p, g_r1m));
-             dsky_set_digit("R1D4", decode_digit(nw1));
-             dsky_set_digit("R1D5", decode_digit(nw2)); break;
-    case  7: g_r1p = flg; dsky_set_sign("R1S", sign_value(g_r1p, g_r1m));
-             dsky_set_digit("R1D2", decode_digit(nw1));
-             dsky_set_digit("R1D3", decode_digit(nw2)); break;
-    case  8: dsky_set_digit("R1D1", decode_digit(nw2)); break;
-    case  9: dsky_set_digit("ND1", decode_digit(nw1));
-             dsky_set_digit("ND2", decode_digit(nw2)); break;
-    case 10: dsky_set_digit("VD1", decode_digit(nw1));
-             dsky_set_digit("VD2", decode_digit(nw2)); break;
-    case 11: dsky_set_digit("PD1", decode_digit(nw1));
-             dsky_set_digit("PD2", decode_digit(nw2)); break;
-    case 12:
-        dsky_set_light("NOATT_LIGHT",       (w & (1 <<  3)) != 0);
-        dsky_set_light("GIMBAL_LOCK_LIGHT", (w & (1 <<  5)) != 0);
-        dsky_set_light("TRACKER_LIGHT",     (w & (1 <<  7)) != 0);
-        dsky_set_light("PROG_LIGHT",        (w & (1 <<  8)) != 0);
-        break;
-    default: break;
-    }
-}
-
 // Toggle "flashing" on every segment inside a DSKYELSegment component.
 // Matches DSKYELSegmentClass::DisplayFlash which sets Segments->Blinking.
-static void dsky_set_flash(const std::string &comp_name, bool on) {
+static void dsky_set_flash_one(const std::string &comp_name, bool on) {
     panel::SceneNode *comp = find_node(g_scene->root.get(), comp_name);
     if (!comp || !comp->component_scene || !comp->component_scene->root) return;
     for (const char *seg : k_seg_names) {
@@ -304,31 +232,36 @@ static void dsky_set_flash(const std::string &comp_name, bool on) {
     }
 }
 
-static void process_011(unsigned short w) {
-    // Diagnostic: log ch011 writes when any interesting bit changes.
-    static unsigned short prev = 0xFFFFu;
-#if 0
-    if (w != prev) {
-        std::fprintf(stderr,
-            "  agc ch011 val=%05o  ELCA=%d UPLK=%d TEMP=%d KREL=%d FLASH=%d OPRERR=%d\n",
-            w,
-            (w >> 1) & 1, (w >> 2) & 1, (w >> 3) & 1,
-            (w >> 4) & 1, (w >> 5) & 1, (w >> 6) & 1);
-        prev = w;
+// Scene-sink adapter: translates DskyDispatch field updates into
+// updates on the GL panel scene (dsky_set_digit / _sign / _light /
+// dsky_set_flash_one).
+class SceneSink : public dskymatic::IDskyDisplaySink {
+public:
+    void set_digit(const std::string &field, int value) override {
+        dsky_set_digit(field, value);
     }
-#endif
-    dsky_set_light("ELCOMPACTY",     (w & (1 << 1)) != 0);
-    dsky_set_light("UPLINK_LIGHT",   (w & (1 << 2)) != 0);
-    dsky_set_light("TEMP_LIGHT",     (w & (1 << 3)) != 0);
-    dsky_set_light("KEYREL_LIGHT",   (w & (1 << 4)) != 0);
-    // BIT6 = flash VERB/NOUN digits (matches Process011Command in scene).
-    bool flash = (w & (1 << 5)) != 0;
-    dsky_set_flash("VD1", flash);
-    dsky_set_flash("VD2", flash);
-    dsky_set_flash("ND1", flash);
-    dsky_set_flash("ND2", flash);
-    dsky_set_light("OPR_ERR_LIGHT",  (w & (1 << 6)) != 0);
-}
+    void set_sign(const std::string &field, int value) override {
+        dsky_set_sign(field, value);
+    }
+    void set_light(const std::string &name, bool on) override {
+        dsky_set_light(name, on);
+    }
+    void set_flashing(const std::string &group, bool flashing) override {
+        // The dispatch emits one flashing call per group ("VERB" or
+        // "NOUN"); the scene stores flash state per segment group,
+        // one component per digit.
+        if (group == "VERB") {
+            dsky_set_flash_one("VD1", flashing);
+            dsky_set_flash_one("VD2", flashing);
+        } else if (group == "NOUN") {
+            dsky_set_flash_one("ND1", flashing);
+            dsky_set_flash_one("ND2", flashing);
+        }
+    }
+};
+
+static SceneSink               g_scene_sink;
+static dskymatic::DskyDispatch g_dispatch;
 
 
 static void drain_agc_channel_output() {
@@ -350,10 +283,13 @@ static void drain_agc_channel_output() {
                     (op.m_usValue >> 10) & 1);
             }
 #endif
-            process_010(op.m_usValue);
+            g_dispatch.on_ch010(op.m_usValue, g_scene_sink);
             dsky_click::on_ch010(op.m_usValue);
         }
-        else if (op.m_usChannel == 011) { process_011(op.m_usValue); ++seen_011; }
+        else if (op.m_usChannel == 011) {
+            g_dispatch.on_ch011(op.m_usValue, g_scene_sink);
+            ++seen_011;
+        }
         else {
             ++seen_other;
 #if 0
