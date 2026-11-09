@@ -10,6 +10,7 @@
 
 #include <SaturnStartupHelper.h>
 #include <SaturnIBStack.h>
+#include <SaturnIBAgcBridge.h>
 #include <ChannelQueue.h>
 #include <agc_engine.h>
 
@@ -23,7 +24,7 @@
 
 static std::shared_ptr<panel::Scene> g_scene;
 static SaturnStartupHelper g_start_helper;
-static SaturnIBStack *g_lv = nullptr;
+static SaturnIBAgcBridge *g_lv = nullptr;
 static int g_win_w = 1200;
 static int g_win_h = 800;
 static std::chrono::steady_clock::time_point g_last_tick;
@@ -617,7 +618,7 @@ int main(int argc, char **argv) {
 
     // Bring up the sim.  SaturnStartupHelper::Initialize is lazy on
     // first GetLaunchVehicle() call.
-    g_lv = static_cast<SaturnIBStack *>(g_start_helper.GetLaunchVehicle());
+    g_lv = g_start_helper.GetLaunchVehicle();
     std::fprintf(stderr, "sim: launch vehicle = %p\n", (void *)g_lv);
 
     // Quick sanity check: make sure Colossus249.bin was findable.
