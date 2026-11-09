@@ -13,3 +13,6 @@
 [submodule "Pi-Power"]
 	path = Pi-Power
 	url = https://github.com/rrainey/Pi-Power
+[submodule "Apollo-Saturn-IB"]
+	path = Apollo-Saturn-IB
+	url = https://github.com/rrainey/Apollo-Saturn-IB.git
