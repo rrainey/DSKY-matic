@@ -60,4 +60,10 @@ void on_ch011(unsigned short value);
  *  indicator is currently asserted. */
 void pump_flash();
 
+/** Mute / unmute click playback without affecting the per-bank edge
+ *  caches.  Used during --resume to prime the caches from the restored
+ *  AGC output state (OutputChannel10[], InputChannel[011]) without
+ *  firing a burst of spurious UNSET→saved-value clicks. */
+void set_quiet(bool quiet);
+
 } // namespace dsky_click

@@ -126,6 +126,7 @@ bool g_flash_prev_phase    = false;
 bool g_flash_prev_phase_set = false;
 
 bool g_inited = false;
+bool g_quiet  = false;
 
 inline bool update_digit(unsigned short &cache, unsigned short next) {
     if (cache == next) return false;
@@ -154,6 +155,7 @@ inline bool update_bit(unsigned char &cache, bool next) {
 void play(int bank) {
 #if DSKYMATIC_AUDIO
     if (!g_inited) return;
+    if (g_quiet)   return;
     if (bank < 0 || bank >= BANK_COUNT) return;
     if (g_clicks[bank]) g_clicks[bank]->Play(false);
 #else
@@ -313,6 +315,10 @@ void on_ch011(unsigned short value) {
     g_flash_temp   = temp;
     g_flash_keyrel = keyrel;
     g_flash_oprerr = oprerr;
+}
+
+void set_quiet(bool quiet) {
+    g_quiet = quiet;
 }
 
 void pump_flash() {

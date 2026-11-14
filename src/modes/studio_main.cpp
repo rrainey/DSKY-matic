@@ -15,6 +15,8 @@
 #include <SaturnIBStack.h>
 #include <SaturnIBAgcBridge.h>
 #include <ChannelQueue.h>
+#include <SimClock.h>
+#include <save_state.h>
 #include <agc_engine.h>
 
 #include <GL/glut.h>
@@ -22,6 +24,7 @@
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <memory>
 #include <string>
 
@@ -31,6 +34,14 @@ static SaturnIBAgcBridge *g_lv = nullptr;
 static int g_win_w = 1200;
 static int g_win_h = 800;
 static std::chrono::steady_clock::time_point g_last_tick;
+
+// --save-state-time / --resume plumbing.  g_save_target_sec < 0 means
+// no save is scheduled.  g_save_last_defer_log is rate-limited stderr
+// output for the CDU-idle deferral.
+static double g_save_target_sec = -1.0;
+static bool   g_save_force      = false;      // ignore CDU-idle gate (testing)
+static std::string g_save_resume_file;
+static std::chrono::steady_clock::time_point g_save_last_defer_log;
 
 // Find a scene node by Name across the tree (including into components).
 static panel::SceneNode *find_node(panel::SceneNode *n, const std::string &name) {
@@ -268,6 +279,70 @@ static SceneSink               g_scene_sink;
 static dskymatic::DskyDispatch g_dispatch;
 
 
+// --save-state-time: save the full sim state at the first tick on or
+// after the requested time where the AGC is not driving the IMU CDUs.
+// Writes saved-state-<ISO8601> and exits cleanly.
+//
+// Deferral is unbounded by design (per user: pick a valid save point);
+// we log one line per second while we're waiting on CDU-idle so the
+// user can see why.
+static void maybe_save_state() {
+    if (g_save_target_sec < 0.0 || !g_lv) return;
+
+    sim::SimClock *clock = sim::GetSimClock();
+    if (!clock) return;
+    const double elapsed = clock->GetElapsedTime();
+    if (elapsed < g_save_target_sec) return;
+
+    // CDU-idle gate.  The AGC cycles the CDU error counter via ch012
+    // BIT4 (CoarseAlignEnable) and drives fine-align pulses while the
+    // IMU is in FINE_ALIGN mode.  Outside those two states the AGC is
+    // not touching the stack-side CDU accumulators, which is what we
+    // actually care about for a clean save point.  The IMU mode by
+    // itself (INERTIAL_REFERENCE vs ATTITUDE_ERROR_DISPLAY etc.) says
+    // nothing about pending CDU pulses — don't gate on it.
+    const bool coarse_active = g_lv->GetCoarseAlignEnable();
+    const ISS_IMU_Mode mode  = g_lv->GetIMUMode();
+    const bool fine_active   = (mode == ISS_IMU_FINE_ALIGN);
+    const bool cdu_idle      = !coarse_active && !fine_active;
+
+    if (!cdu_idle && !g_save_force) {
+        auto now = std::chrono::steady_clock::now();
+        if (now - g_save_last_defer_log >= std::chrono::seconds(1)) {
+            g_save_last_defer_log = now;
+            std::fprintf(stderr,
+                "save-state: deferred at t=%.3f (coarse=%d fine=%d imu_mode=%d)\n",
+                elapsed, coarse_active ? 1 : 0, fine_active ? 1 : 0, (int)mode);
+        }
+        return;
+    }
+
+    dskymatic::SaveFile sf;
+    sf.iso_timestamp   = dskymatic::make_iso_timestamp_local();
+    sf.sim_elapsed_sec = elapsed;
+
+    {
+        dskymatic::BinaryWriter w;
+        sim::GetSimClock()->SerializeState(w);
+        sf.sections.push_back({ "sim_clock", std::move(w.bytes()) });
+    }
+    {
+        dskymatic::BinaryWriter w;
+        g_lv->SerializeState(w);
+        sf.sections.push_back({ "sat_bridge", std::move(w.bytes()) });
+    }
+
+    std::string path = dskymatic::make_save_filename();
+    if (!sf.write(path)) {
+        std::fprintf(stderr, "save-state: write failed (%s)\n", path.c_str());
+        std::exit(1);
+    }
+    std::fprintf(stderr,
+        "save-state: wrote %s at sim-elapsed=%.3f s (%zu sections)\n",
+        path.c_str(), elapsed, sf.sections.size());
+    std::exit(0);
+}
+
 static void drain_agc_channel_output() {
     static int total = 0, seen_010 = 0, seen_011 = 0, seen_other = 0;
     while (!g_AGCChannelOutputQueue.empty()) {
@@ -361,6 +436,7 @@ static void idle() {
     dsky_click::pump_flash();
     update_fdai_from_sim();
     update_text_from_sim();
+    maybe_save_state();
 
     // Poll AGC input channels 030-033 (sim -> AGC discretes).  Log
     // whenever any change with per-bit decode so we can see exactly
@@ -522,8 +598,45 @@ static void key(unsigned char c, int, int) {
     if (c == 's') { panel::g_render_spheres_only = !panel::g_render_spheres_only; }
 }
 
+static void print_usage(const char *argv0) {
+    std::fprintf(stderr,
+        "usage: %s [SCENE_PATH]\n"
+        "           [--save-state-time SEC] [--resume FILE]\n"
+        "\n"
+        "  --save-state-time SEC   Save full sim state the first tick on or\n"
+        "                          after sim-elapsed SEC seconds when the\n"
+        "                          AGC is not driving the IMU CDUs (coarse\n"
+        "                          align off, no fine-align axis, inertial\n"
+        "                          reference).  Writes saved-state-<ISO8601>\n"
+        "                          and exits cleanly.\n"
+        "  --resume FILE           Load a saved state and continue from it.\n"
+        "                          The ISS turn-on choreography is skipped.\n"
+        "  --save-force            Bypass the CDU-idle save-point gate.  Only\n"
+        "                          for testing the plumbing; may produce an\n"
+        "                          inconsistent AGC/IMU state on resume.\n",
+        argv0);
+}
+
 int main(int argc, char **argv) {
-    const char *scene_path = (argc > 1) ? argv[1] : "panel/panel.json";
+    const char *scene_path = "panel/panel.json";
+    for (int i = 1; i < argc; ++i) {
+        if (std::strcmp(argv[i], "--save-state-time") == 0 && i + 1 < argc) {
+            g_save_target_sec = std::atof(argv[++i]);
+        } else if (std::strcmp(argv[i], "--resume") == 0 && i + 1 < argc) {
+            g_save_resume_file = argv[++i];
+        } else if (std::strcmp(argv[i], "--save-force") == 0) {
+            g_save_force = true;
+        } else if (std::strcmp(argv[i], "-h") == 0 || std::strcmp(argv[i], "--help") == 0) {
+            print_usage(argv[0]);
+            return 0;
+        } else if (argv[i][0] != '-') {
+            scene_path = argv[i];
+        } else {
+            std::fprintf(stderr, "unrecognized arg: %s\n", argv[i]);
+            print_usage(argv[0]);
+            return 2;
+        }
+    }
 
     g_scene = panel::Scene::load(scene_path, ".");
     std::printf("scene: %dx%d, %zu top-level children, %zu textures\n",
@@ -588,7 +701,69 @@ int main(int argc, char **argv) {
     // the sim just runs silently.
     dsky_click::init();
 
+    // Resume from a saved-state file, if requested.  The bridge has
+    // already been constructed (ROM loaded, erasable patches applied);
+    // we overwrite its state in-place and the sim picks up from there.
+    if (!g_save_resume_file.empty()) {
+        dskymatic::SaveFile sf;
+        if (!dskymatic::SaveFile::read(g_save_resume_file, sf)) {
+            std::fprintf(stderr, "resume: failed to read %s\n",
+                         g_save_resume_file.c_str());
+            return 1;
+        }
+        std::fprintf(stderr,
+            "resume: %s (saved %s, sim-elapsed=%.3f s)\n",
+            g_save_resume_file.c_str(),
+            sf.iso_timestamp.c_str(), sf.sim_elapsed_sec);
+
+        const dskymatic::Section *sec = nullptr;
+
+        sec = sf.find("sim_clock");
+        if (sec) {
+            dskymatic::BinaryReader r(sec->data);
+            if (!sim::GetSimClock()->DeserializeState(r))
+                std::fprintf(stderr, "resume: sim_clock deserialize failed\n");
+        } else {
+            std::fprintf(stderr, "resume: missing sim_clock section\n");
+        }
+
+        sec = sf.find("sat_bridge");
+        if (sec) {
+            dskymatic::BinaryReader r(sec->data);
+            if (!g_lv->DeserializeState(r))
+                std::fprintf(stderr, "resume: sat_bridge deserialize failed\n");
+        } else {
+            std::fprintf(stderr, "resume: missing sat_bridge section\n");
+        }
+
+
+        // Repaint the DSKY from the restored AGC output caches.  The AGC
+        // only emits a ch010/ch011 write on change, so without this the
+        // scene sink starts blank and stays blank until the running
+        // program next touches each field (e.g. P02's PROG digits
+        // don't reappear until P11 overwrites them at liftoff).  yaAGC
+        // keeps the last-written value per ch010 relay word in
+        // OutputChannel10[AAAA] and the current ch011 bits in
+        // InputChannel[011]; dispatch those through the normal path.
+        // dsky_click is muted so priming its edge caches from UNSET→
+        // saved-value doesn't fire a burst of spurious clicks.
+        if (agc_t *agc = g_lv->DebugGetAGC()) {
+            dsky_click::set_quiet(true);
+            for (int cmd = 1; cmd <= 12; ++cmd) {
+                unsigned short w = (unsigned short)agc->OutputChannel10[cmd];
+                if (w == 0) continue;
+                g_dispatch.on_ch010(w, g_scene_sink);
+                dsky_click::on_ch010(w);
+            }
+            unsigned short ch11 = (unsigned short)agc->InputChannel[011];
+            g_dispatch.on_ch011(ch11, g_scene_sink);
+            dsky_click::on_ch011(ch11);
+            dsky_click::set_quiet(false);
+        }
+    }
+
     g_last_tick = std::chrono::steady_clock::now();
+    g_save_last_defer_log = g_last_tick;
 
     glutDisplayFunc(display);
     glutReshapeFunc(reshape);
