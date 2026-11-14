@@ -6,12 +6,19 @@
 #include <GL/glu.h>
 #include <GL/glut.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 
 namespace panel {
 
 bool g_render_spheres_only = false;
+static float g_font_scale       = 1.0f;
+static bool  g_use_stroke_fonts = false;
+
+void  set_font_scale(float s)       { g_font_scale = s > 0.0f ? s : 1.0f; }
+float get_font_scale()              { return g_font_scale; }
+void  set_use_stroke_fonts(bool on) { g_use_stroke_fonts = on; }
 
 // Global blink phase, refreshed by begin_frame().  Sourced from the
 // shared dskymatic::Flasher so the panel's visual blink stays
@@ -97,26 +104,83 @@ void draw_textbox_content(const SceneNode &n) {
     // is defined with (0,0)..(w,h)).  Text starts near the top.
     glDisable(GL_TEXTURE_2D);
     glColor4ub(n.text_color.r, n.text_color.g, n.text_color.b, n.text_color.a);
-    // GLUT bitmap fonts are fixed-size; pick 8x13 when CellHeight is
-    // below the historical 15 px default (e.g. StatusWindow at 80%).
-    void *font = (n.cell_h < 15) ? GLUT_BITMAP_8_BY_13 : GLUT_BITMAP_9_BY_15;
-    float x = 2.0f;
-    float y = box_h - static_cast<float>(n.cell_h);
-    glRasterPos2f(x, y);
-    for (char c : n.text) {
-        if (c == '\n') {
-            y -= static_cast<float>(n.cell_h);
-            x = 2.0f;
-            glRasterPos2f(x, y);
-        } else if (c == '\r') {
-            // ignore
-        } else if (c == '\t') {
-            x += 4 * n.cell_w;
-            glRasterPos2f(x, y);
-        } else {
-            glutBitmapCharacter(font, c);
-            x += n.cell_w;
+
+    // Effective cell size scales with g_font_scale so --font-scale can
+    // grow the text in world units (and the viewport maps that to
+    // pixels as usual).
+    const float cell_w = n.cell_w * g_font_scale;
+    const float cell_h = n.cell_h * g_font_scale;
+
+    // Use the bitmap path only when font_scale is 1.0 AND the renderer
+    // isn't being forced onto stroke fonts for a stretched window.
+    const bool use_bitmap = (g_font_scale <= 1.0f) && !g_use_stroke_fonts;
+    if (use_bitmap) {
+        // Original path: GLUT bitmap fonts.  Fixed pixel size, no scale
+        // transform needed, cheap to draw.  8x13 or 9x15 based on the
+        // node's native cell_h (StatusWindow asks for 80% ⇒ 8x13).
+        void *font = (n.cell_h < 15) ? GLUT_BITMAP_8_BY_13 : GLUT_BITMAP_9_BY_15;
+        float x = 2.0f;
+        float y = box_h - static_cast<float>(n.cell_h);
+        glRasterPos2f(x, y);
+        for (char c : n.text) {
+            if (c == '\n') {
+                y -= static_cast<float>(n.cell_h);
+                x = 2.0f;
+                glRasterPos2f(x, y);
+            } else if (c == '\r') {
+                // ignore
+            } else if (c == '\t') {
+                x += 4 * n.cell_w;
+                glRasterPos2f(x, y);
+            } else {
+                glutBitmapCharacter(font, c);
+                x += n.cell_w;
+            }
         }
+    } else {
+        // Scaled path: GLUT stroke fonts are drawn with GL_LINES in
+        // world coords, so glScalef gives arbitrary crisp sizes.
+        // GLUT_STROKE_MONO_ROMAN advances 104.76 units per character
+        // horizontally; the font's design height is 152.38 units
+        // (capital-letter top to descender bottom).  Scale both axes
+        // so each glyph fills roughly one (cell_w, cell_h) cell.
+        //
+        // kStrokeWidthFactor narrows the horizontal cell to match the
+        // visual density of the bitmap font — GLUT_BITMAP_9_BY_15 has
+        // 9 px glyphs in 10 px cells (90% fill), and glyph strokes
+        // themselves read as denser than bitmap, so the stroke font
+        // looks noticeably wider per column at the same cell_w.
+        // Compressing the cell by 0.8 makes stroke-rendered debug /
+        // downlink text match the bitmap layout density that the
+        // scene was designed for.
+        constexpr float kStrokeAdvance    = 104.76f;
+        constexpr float kStrokeHeight     = 152.38f;
+        constexpr float kStrokeWidthFactor = 0.8f;
+        const float eff_cell_w = cell_w * kStrokeWidthFactor;
+        const float sx = eff_cell_w / kStrokeAdvance;
+        const float sy = cell_h     / kStrokeHeight;
+
+        glLineWidth(std::max(1.0f, g_font_scale * 0.75f));
+
+        float x = 2.0f;
+        float y = box_h - cell_h;
+        for (char c : n.text) {
+            if (c == '\n') {
+                y -= cell_h;
+                x = 2.0f;
+                continue;
+            }
+            if (c == '\r') continue;
+            if (c == '\t') { x += 4.0f * eff_cell_w; continue; }
+
+            glPushMatrix();
+            glTranslatef(x, y, 0.0f);
+            glScalef(sx, sy, 1.0f);
+            glutStrokeCharacter(GLUT_STROKE_MONO_ROMAN, c);
+            glPopMatrix();
+            x += eff_cell_w;
+        }
+        glLineWidth(1.0f);
     }
 }
 

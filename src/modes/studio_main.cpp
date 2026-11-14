@@ -601,7 +601,7 @@ static void key(unsigned char c, int, int) {
 static void print_usage(const char *argv0) {
     std::fprintf(stderr,
         "usage: %s [SCENE_PATH]\n"
-        "           [--save-state-time SEC] [--resume FILE]\n"
+        "           [--save-state-time SEC] [--resume FILE] [--max-window]\n"
         "\n"
         "  --save-state-time SEC   Save full sim state the first tick on or\n"
         "                          after sim-elapsed SEC seconds when the\n"
@@ -613,12 +613,68 @@ static void print_usage(const char *argv0) {
         "                          The ISS turn-on choreography is skipped.\n"
         "  --save-force            Bypass the CDU-idle save-point gate.  Only\n"
         "                          for testing the plumbing; may produce an\n"
-        "                          inconsistent AGC/IMU state on resume.\n",
+        "                          inconsistent AGC/IMU state on resume.\n"
+        "  --max-window            Scale the window up to the largest size\n"
+        "                          that fits on the primary screen while\n"
+        "                          preserving the scene's aspect ratio.\n"
+        "                          Default is the scene's native dimensions.\n"
+        "  --font-scale N          Extra multiplier for DebugWindow /\n"
+        "                          StatusWindow (downlink) text, in world\n"
+        "                          units.  Default 1.0.  --max-window\n"
+        "                          already switches to scalable stroke\n"
+        "                          fonts and lets the viewport stretch\n"
+        "                          native-sized text to the enlarged\n"
+        "                          window, so only use --font-scale when\n"
+        "                          you want text LARGER than that.\n",
         argv0);
+}
+
+// Pick an initial window size.  Default: the scene's native dimensions
+// (returns scale=1.0).  --max-window: uniformly scale to the largest size
+// that fits the primary screen without clipping, preserving aspect
+// ratio.  Reserves a conservative margin for window-manager chrome
+// (title bar, borders, taskbar/dock) that GLUT doesn't expose a
+// portable way to query.  Returns the applied scale factor so callers
+// can match other UI scaling (font size).
+static double pick_window_size(bool max_window, int scene_w, int scene_h,
+                               int &out_w, int &out_h)
+{
+    out_w = scene_w;
+    out_h = scene_h;
+    if (!max_window) return 1.0;
+
+    const int screen_w = glutGet(GLUT_SCREEN_WIDTH);
+    const int screen_h = glutGet(GLUT_SCREEN_HEIGHT);
+    if (screen_w <= 0 || screen_h <= 0) return 1.0;
+
+    // Chrome budget: ~16 px of vertical border + title bar (~40 px) plus a
+    // taskbar/dock allowance (~60 px); ~16 px of horizontal borders.  These
+    // are conservative round numbers — the goal is "fits every realistic
+    // desktop without clipping", not pixel-perfect packing.
+    constexpr int kChromeHoriz = 16;
+    constexpr int kChromeVert  = 116;
+    const int usable_w = screen_w - kChromeHoriz;
+    const int usable_h = screen_h - kChromeVert;
+    if (usable_w <= 0 || usable_h <= 0) return 1.0;
+
+    const double sx = (double)usable_w / (double)scene_w;
+    const double sy = (double)usable_h / (double)scene_h;
+    const double s  = (sx < sy) ? sx : sy;
+    if (s <= 0.0) return 1.0;
+
+    out_w = (int)(scene_w * s);
+    out_h = (int)(scene_h * s);
+    std::fprintf(stderr,
+        "window: scene=%dx%d screen=%dx%d usable=%dx%d scale=%.3f -> %dx%d\n",
+        scene_w, scene_h, screen_w, screen_h, usable_w, usable_h, s,
+        out_w, out_h);
+    return s;
 }
 
 int main(int argc, char **argv) {
     const char *scene_path = "panel/panel.json";
+    bool  max_window      = false;
+    float user_font_scale = 0.0f;  // 0 = "unspecified; auto from window"
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--save-state-time") == 0 && i + 1 < argc) {
             g_save_target_sec = std::atof(argv[++i]);
@@ -626,6 +682,10 @@ int main(int argc, char **argv) {
             g_save_resume_file = argv[++i];
         } else if (std::strcmp(argv[i], "--save-force") == 0) {
             g_save_force = true;
+        } else if (std::strcmp(argv[i], "--max-window") == 0) {
+            max_window = true;
+        } else if (std::strcmp(argv[i], "--font-scale") == 0 && i + 1 < argc) {
+            user_font_scale = (float)std::atof(argv[++i]);
         } else if (std::strcmp(argv[i], "-h") == 0 || std::strcmp(argv[i], "--help") == 0) {
             print_usage(argv[0]);
             return 0;
@@ -650,8 +710,29 @@ int main(int argc, char **argv) {
     // with glEnable(GL_MULTISAMPLE) below, this smooths polygon edges
     // for DSKY digits, FDAI needles, and the panel outline.
     glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_MULTISAMPLE);
-    glutInitWindowSize(g_scene->width, g_scene->height);
+    int init_w = g_scene->width, init_h = g_scene->height;
+    double window_scale =
+        pick_window_size(max_window, g_scene->width, g_scene->height,
+                         init_w, init_h);
+    glutInitWindowSize(init_w, init_h);
     glutCreateWindow(g_scene->title.c_str());
+
+    // Font rendering.  When --max-window stretches the viewport, bitmap
+    // glyphs stay a fixed pixel count and would look tiny; switch to
+    // stroke fonts, which render in world units and scale with the
+    // viewport automatically.  --font-scale, if given, is an *extra*
+    // multiplier on top of that (in world units) — not a replacement
+    // for the viewport scaling.  Without --font-scale the default
+    // multiplier is 1.0, so --max-window alone yields native-sized
+    // glyphs stretched by the viewport, not viewport-squared.
+    const float font_scale = (user_font_scale > 0.0f) ? user_font_scale : 1.0f;
+    panel::set_font_scale(font_scale);
+    panel::set_use_stroke_fonts(max_window || font_scale > 1.0f);
+    if (max_window || font_scale > 1.0f)
+        std::fprintf(stderr,
+            "font: stroke, scale=%.3f (viewport=%.3f -> effective %.3f px/native-px)\n",
+            font_scale, window_scale, font_scale * window_scale);
+    (void)window_scale;
     glEnable(GL_MULTISAMPLE);
 
     panel::load_scene_textures(*g_scene);

@@ -25,4 +25,18 @@ extern bool g_render_spheres_only;
 // Alternative: render just one node subtree (useful for probes).
 void render_node(const Scene &scene, const SceneNode &node);
 
+// Multiplier applied to TextBox cell_w / cell_h at render time.  1.0
+// leaves the native scene dimensions.  Values > 1.0 enlarge the text
+// in world units (which the viewport then maps to pixels as usual).
+void set_font_scale(float s);
+float get_font_scale();
+
+// Force the TextBox renderer onto GLUT stroke fonts regardless of
+// font_scale.  Needed when the window is stretched above native size
+// (--max-window): bitmap glyphs are a fixed pixel count and would
+// look tiny in the enlarged window, while stroke glyphs render in
+// world coords and scale with the viewport.  When this is false (the
+// default), bitmap rendering is used at scale=1.0 and stroke at >1.0.
+void set_use_stroke_fonts(bool on);
+
 }  // namespace panel
