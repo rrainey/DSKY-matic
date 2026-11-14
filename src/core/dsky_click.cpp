@@ -1,13 +1,37 @@
 /*
- * DSKY relay-click dispatch — ports the logic in
- * ~/src/dsky-hw/dmapp/DSKYmaticIF.cpp (processOutputChannelCommand case 010).
+ * DSKY relay-click dispatch — fires an OpenAL one-shot whenever an
+ * AGC output word toggles a relay in the Block II DSKY's Indicator
+ * Driver Modules.
  *
- * One OpenAL SoundSource per relay bank so clicks in different banks
- * overlap cleanly.  All banks play the same one-relay-click.wav;
- * polyphony is per-source.
+ * The DSKY has one latching relay per digit segment / sign / lamp
+ * position.  The real hardware's audible "click" is that relay
+ * engaging or disengaging.  We mirror that by:
+ *
+ *   • ch010 cmd 1..11  → per-digit / per-sign edge clicks (M, V, N,
+ *                        R1..R3 banks).
+ *   • ch010 cmd 12     → per-bit edge clicks for the lamp word
+ *                        (NO ATT, GIMBAL LOCK, TRACKER, PROG).
+ *   • ch011 bits 1..7  → per-bit edge clicks for the status-lamp
+ *                        latches (COMP ACTY, UPLINK ACTY, TEMP,
+ *                        KEY REL, OPR ERR).
+ *   • pump_flash()     → one coalesced click per flasher edge while
+ *                        any flashed indicator is asserted.
+ *
+ * Coalescing is deliberate (option "b"): on real hardware several
+ * relays cycle simultaneously under the single flasher clock, which
+ * would stack into a louder/sharper click rather than N independent
+ * clicks.  A single representative click per edge keeps that
+ * perceptual texture without flooding the output with overlapping
+ * bank sources.
+ *
+ * All handlers edge-detect against cached state (BIT15 sentinel as
+ * "no-value-yet"); otherwise the AGC's periodic rewrites would make
+ * the DSKY buzz continuously.
  */
 
 #include "dsky_click.h"
+
+#include "flasher.h"
 
 #include <cstdio>
 #include <cstring>
@@ -22,15 +46,37 @@
 namespace {
 
 #if DSKYMATIC_AUDIO
-// Ordered to match ~/src/dsky-hw/dmapp/DSKYmaticIF.h enum SoundSources,
-// minus the unused COMP_ACTY slot.
+// One source per logical relay bank.  Digits / signs come first
+// (matches the historical ordering in ~/src/dsky-hw/dmapp); the
+// status-lamp and flash banks were added when ch011 and the
+// cmd-12 lamp word were brought into the click path.
 enum RelayBank {
+    // Digit / sign banks (ch010 cmd 1..11).
     M1, M2,
     V1, V2,
     N1, N2,
     R11, R12, R13, R14, R15, R1S,
     R21, R22, R23, R24, R25, R2S,
     R31, R32, R33, R34, R35, R3S,
+
+    // Lamp word (ch010 cmd 12).  In the real DSKY these are all
+    // latching relays in the same Indicator Driver Modules as the
+    // digit relays, just at different matrix positions.
+    NO_ATT,
+    GIMBAL_LOCK,
+    TRACKER,
+    PROG,
+
+    // Status lamps (ch011 bits 2..7, minus V/N FLASH).
+    COMP_ACTY,
+    UPLINK,
+    TEMP,
+    KEYREL,
+    OPR_ERR,
+
+    // One coalesced source for the shared 1.5 Hz flasher edges.
+    FLASH,
+
     BANK_COUNT
 };
 
@@ -53,6 +99,32 @@ unsigned short g_r3[5]    = {UNSET, UNSET, UNSET, UNSET, UNSET};  // R31..R35
 // and minus as separate booleans; same information.
 unsigned short g_sign[3]  = {UNSET, UNSET, UNSET};               // R1S, R2S, R3S
 
+// Lamp-word (ch010 cmd 12) edge cache, one bit per lamp.
+// UNSET = "no-value-yet"; otherwise 0/1.
+unsigned char g_lw_no_att      = (unsigned char)0xFFu;
+unsigned char g_lw_gimbal_lock = (unsigned char)0xFFu;
+unsigned char g_lw_tracker     = (unsigned char)0xFFu;
+unsigned char g_lw_prog        = (unsigned char)0xFFu;
+
+// Ch011 status-lamp edge cache.
+unsigned char g_sl_comp_acty = (unsigned char)0xFFu;
+unsigned char g_sl_uplink    = (unsigned char)0xFFu;
+unsigned char g_sl_temp      = (unsigned char)0xFFu;
+unsigned char g_sl_keyrel    = (unsigned char)0xFFu;
+unsigned char g_sl_oprerr    = (unsigned char)0xFFu;
+
+// "Currently flashing" latches, updated on each ch011 write.  The
+// flasher pump fires exactly one click per edge when any of these
+// is set (option b: coalesced single click rather than per-bank).
+bool g_flash_vn     = false;
+bool g_flash_temp   = false;
+bool g_flash_keyrel = false;
+bool g_flash_oprerr = false;
+
+// Flasher-pump prev-phase.  Seeded on first pump_flash() call.
+bool g_flash_prev_phase    = false;
+bool g_flash_prev_phase_set = false;
+
 bool g_inited = false;
 
 inline bool update_digit(unsigned short &cache, unsigned short next) {
@@ -67,6 +139,15 @@ inline bool update_digit(unsigned short &cache, unsigned short next) {
 inline bool update_sign(unsigned short &cache, unsigned short newbits) {
     if (cache == newbits) return false;
     cache = newbits;
+    return true;
+}
+
+// Edge-detect for single-bit lamp caches (UNSET → 0xFF forces the
+// first write to fire).  Returns true iff the stored value changed.
+inline bool update_bit(unsigned char &cache, bool next) {
+    const unsigned char n = next ? 1u : 0u;
+    if (cache == n) return false;
+    cache = n;
     return true;
 }
 
@@ -192,12 +273,70 @@ void on_ch010(unsigned short value) {
         if (update_digit(g_prog[1], d2)) play(M2);
         break;
     case 12:
-        // Lamps (NOATT / GIMBAL_LOCK / TRACKER / PROG).  dsky-hw did not
-        // fire a click for lamp changes — leave as-is.
+        // Lamp word.  Bit numbering (1-indexed, per Virtual AGC docs):
+        //   b4 NO ATT, b6 GIMBAL LOCK, b8 TRACKER, b9 PROG
+        // (b1..b3,b5 are LM-only and never asserted by Colossus; left
+        // out until we have a use for them.)
+        if (update_bit(g_lw_no_att,      (value & (1 << 3)) != 0)) play(NO_ATT);
+        if (update_bit(g_lw_gimbal_lock, (value & (1 << 5)) != 0)) play(GIMBAL_LOCK);
+        if (update_bit(g_lw_tracker,     (value & (1 << 7)) != 0)) play(TRACKER);
+        if (update_bit(g_lw_prog,        (value & (1 << 8)) != 0)) play(PROG);
         break;
     default:
         break;
     }
+}
+
+void on_ch011(unsigned short value) {
+    // Bit numbering (1-indexed, per Virtual AGC docs):
+    //   b2 COMP ACTY, b3 UPLINK ACTY, b4 TEMP, b5 KEY REL,
+    //   b6 V/N FLASH, b7 OPR ERR
+    const bool comp_acty = (value & (1 << 1)) != 0;
+    const bool uplink    = (value & (1 << 2)) != 0;
+    const bool temp      = (value & (1 << 3)) != 0;
+    const bool keyrel    = (value & (1 << 4)) != 0;
+    const bool vnflash   = (value & (1 << 5)) != 0;
+    const bool oprerr    = (value & (1 << 6)) != 0;
+
+    // Edge clicks for the solid-state latches.  Note: TEMP, KEY REL
+    // and OPR ERR also click on each assertion edge even though they
+    // subsequently flash — the initial relay engagement is itself a
+    // click independent of the flasher-driven cycling.
+    if (update_bit(g_sl_comp_acty, comp_acty)) play(COMP_ACTY);
+    if (update_bit(g_sl_uplink,    uplink))    play(UPLINK);
+    if (update_bit(g_sl_temp,      temp))      play(TEMP);
+    if (update_bit(g_sl_keyrel,    keyrel))    play(KEYREL);
+    if (update_bit(g_sl_oprerr,    oprerr))    play(OPR_ERR);
+
+    // Latch current flash state for pump_flash() to consume.
+    g_flash_vn     = vnflash;
+    g_flash_temp   = temp;
+    g_flash_keyrel = keyrel;
+    g_flash_oprerr = oprerr;
+}
+
+void pump_flash() {
+#if DSKYMATIC_AUDIO
+    if (!g_inited) return;
+
+    const bool cur = dskymatic::flasher().phase();
+    if (!g_flash_prev_phase_set) {
+        g_flash_prev_phase     = cur;
+        g_flash_prev_phase_set = true;
+        return;
+    }
+    if (cur == g_flash_prev_phase) return;
+    g_flash_prev_phase = cur;
+
+    // Option (b): one coalesced click per flasher edge, regardless of
+    // how many indicators are flashing simultaneously.  On the real
+    // hardware the relays cycle in lock-step under a single flasher
+    // clock, so N relays firing together sounds like one sharper
+    // click rather than N independent events.
+    if (g_flash_vn || g_flash_temp || g_flash_keyrel || g_flash_oprerr) {
+        play(FLASH);
+    }
+#endif
 }
 
 } // namespace dsky_click

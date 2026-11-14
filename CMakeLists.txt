@@ -52,6 +52,7 @@ add_library(dskymatic_core STATIC
     src/core/stb_image_impl.cpp
     src/core/dsky_click.cpp
     src/core/dsky_dispatch.cpp
+    src/core/flasher.cpp
 )
 target_include_directories(dskymatic_core PUBLIC
     src/core

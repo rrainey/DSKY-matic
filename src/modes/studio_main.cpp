@@ -247,15 +247,19 @@ public:
         dsky_set_light(name, on);
     }
     void set_flashing(const std::string &group, bool flashing) override {
-        // The dispatch emits one flashing call per group ("VERB" or
-        // "NOUN"); the scene stores flash state per segment group,
-        // one component per digit.
+        // The dispatch emits one flashing call per group.  V/N digit
+        // groups blink their underlying segments; status lamps blink
+        // the lamp node directly (panel_render skips a frame when the
+        // node's `flashing` flag is set and the shared flasher is in
+        // its off-phase).
         if (group == "VERB") {
             dsky_set_flash_one("VD1", flashing);
             dsky_set_flash_one("VD2", flashing);
         } else if (group == "NOUN") {
             dsky_set_flash_one("ND1", flashing);
             dsky_set_flash_one("ND2", flashing);
+        } else if (panel::SceneNode *n = find_node(g_scene->root.get(), group)) {
+            n->flashing = flashing;
         }
     }
 };
@@ -288,6 +292,7 @@ static void drain_agc_channel_output() {
         }
         else if (op.m_usChannel == 011) {
             g_dispatch.on_ch011(op.m_usValue, g_scene_sink);
+            dsky_click::on_ch011(op.m_usValue);
             ++seen_011;
         }
         else {
@@ -351,6 +356,9 @@ static void idle() {
 #endif
     }
     drain_agc_channel_output();
+    // One coalesced relay-click per shared-flasher edge (V/N FLASH +
+    // TEMP/KEY REL/OPR ERR cycle together under one hardware clock).
+    dsky_click::pump_flash();
     update_fdai_from_sim();
     update_text_from_sim();
 

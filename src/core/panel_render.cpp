@@ -1,10 +1,11 @@
 #include "panel_render.h"
 
+#include "flasher.h"
+
 #include <GL/gl.h>
 #include <GL/glu.h>
 #include <GL/glut.h>
 
-#include <chrono>
 #include <cmath>
 #include <cstdio>
 
@@ -12,16 +13,13 @@ namespace panel {
 
 bool g_render_spheres_only = false;
 
-// Global blink phase, refreshed by begin_frame().
+// Global blink phase, refreshed by begin_frame().  Sourced from the
+// shared dskymatic::Flasher so the panel's visual blink stays
+// phase-aligned with the audible relay clicks in dsky_click.
 static bool g_blink_off = false;
 
 static void update_blink_phase() {
-    // 2 Hz square wave; half-period = 250 ms.
-    using clock = std::chrono::steady_clock;
-    static auto t0 = clock::now();
-    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                  clock::now() - t0).count();
-    g_blink_off = ((ms / 250) & 1) != 0;
+    g_blink_off = !dskymatic::flasher().phase();
 }
 
 void begin_frame(const Scene &scene, int viewport_w, int viewport_h) {

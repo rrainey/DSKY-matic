@@ -116,15 +116,34 @@ void DskyDispatch::on_ch010(unsigned short w, IDskyDisplaySink &sink) {
 }
 
 void DskyDispatch::on_ch011(unsigned short w, IDskyDisplaySink &sink) {
-    sink.set_light("ELCOMPACTY",   (w & (1 << 1)) != 0);
-    sink.set_light("UPLINK_LIGHT", (w & (1 << 2)) != 0);
-    sink.set_light("TEMP_LIGHT",   (w & (1 << 3)) != 0);
-    sink.set_light("KEYREL_LIGHT", (w & (1 << 4)) != 0);
-    // BIT6 flashes the VERB/NOUN digit groups at ~1.5 cps.
-    const bool flash = (w & (1 << 5)) != 0;
-    sink.set_flashing("VERB", flash);
-    sink.set_flashing("NOUN", flash);
-    sink.set_light("OPR_ERR_LIGHT", (w & (1 << 6)) != 0);
+    // Bit numbering matches the Virtual AGC developer notes
+    // (channel 011 is 1-indexed in the docs; LSB is bit 1).
+    const bool comp_acty = (w & (1 << 1)) != 0;  // bit 2
+    const bool uplink    = (w & (1 << 2)) != 0;  // bit 3
+    const bool temp      = (w & (1 << 3)) != 0;  // bit 4
+    const bool keyrel    = (w & (1 << 4)) != 0;  // bit 5
+    const bool vnflash   = (w & (1 << 5)) != 0;  // bit 6
+    const bool oprerr    = (w & (1 << 6)) != 0;  // bit 7
+
+    sink.set_light("ELCOMPACTY",    comp_acty);
+    sink.set_light("UPLINK_LIGHT",  uplink);
+    sink.set_light("TEMP_LIGHT",    temp);
+    sink.set_light("KEYREL_LIGHT",  keyrel);
+    sink.set_light("OPR_ERR_LIGHT", oprerr);
+
+    // V/N FLASH: both digit groups blink together at the shared
+    // flasher rate.
+    sink.set_flashing("VERB", vnflash);
+    sink.set_flashing("NOUN", vnflash);
+
+    // In the Block II DSKY the single hardware flasher also gates
+    // the drive to the TEMP, KEY REL and OPR ERR latching relays,
+    // so the lamp physically pulses in sync with V/N FLASH while
+    // the AGC asserts the bit.  (See Virtual AGC "fictitious" ch0163,
+    // which models exactly this post-flasher drive.)
+    sink.set_flashing("TEMP_LIGHT",    temp);
+    sink.set_flashing("KEYREL_LIGHT",  keyrel);
+    sink.set_flashing("OPR_ERR_LIGHT", oprerr);
 }
 
 } // namespace dskymatic

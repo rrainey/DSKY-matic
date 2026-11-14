@@ -68,10 +68,15 @@ int main(int /*argc*/, char ** /*argv*/) {
             }
             else if (op.m_usChannel == 011) {
                 dispatch.on_ch011(op.m_usValue, hw);
+                dsky_click::on_ch011(op.m_usValue);
             }
             // Other channels (013/034/035 downlink, etc.) are consumed by
             // the bridge itself; nothing to do here.
         }
+
+        // Shared-flasher coalesced click (one per edge while any
+        // flashed indicator is asserted).
+        dsky_click::pump_flash();
 
         // Keyboard polling from hardware → bridge AGC input queue.
         int kc = hw.poll_keycode();
