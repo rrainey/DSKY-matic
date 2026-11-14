@@ -40,7 +40,7 @@ Major to-dos:
 * [**complete**] design and test an alternative to the original Electroluminescent Display module. This alternate assembly uses LEDs in place of the EL display.  It's easier to build and may be more reliable over time - if not as cool.
 * [**complete**] build and test batch of the revised (current limited) EL Driver boards
 * [**complete**] test fully integrated DSKY hardware and software driver configuration
-* [**in progress**] Integrated AGC and spacecraft simulator software
+* [**in progress**] Integrated AGC and spacecraft simulator software (`dskymatic-studio` / `dskymatic-headless` -- see [Running the Apollo-7 Simulation](#running-the-apollo-7-simulation))
 
 ### Cloning
 
@@ -71,6 +71,103 @@ Now clone all submodules:
 * **Pi-Power** - power supply hat for the Raspberry Pi 4
 
 * **virtualagc** - Ron Burkey's Virtual AGC software; runs on the Raspberry Pi 4 in this implementation
+
+* **Apollo-Saturn-IB** - vehicle plant, LVDC guidance, IMU physics, and the CSM AGC (`yaAGC`) bridge, consumed as a git submodule. Provides the `saturnib` / `saturnib_cmc` static libraries that the `dskymatic-*` modes link against.
+
+* **src/core**, **src/modes**, **src/hardware**, **src/audio** - the DSKY-matic simulation modes (`dskymatic-studio`, `dskymatic-headless`) and their shared panel/scene/DSKY-dispatch/audio code.
+
+## Running the Apollo-7 Simulation
+
+This repository builds a human-in-the-loop simulation of the Apollo 7 (AS-205) Saturn IB launch. Vehicle dynamics and LVDC guidance come from the `Apollo-Saturn-IB` submodule; the CSM AGC is Ron Burkey's `yaAGC` running the Colossus 249 flight software.
+
+Two modes are built from this tree:
+
+- **`dskymatic-studio`** - interactive on-screen DSKY + FDAI panel running at wall-clock pace. This is the mode you want on a desktop with no DSKY-matic hardware attached. (It is the former `apolloa` application, migrated here from `Apollo-Saturn-IB`.)
+- **`dskymatic-headless`** - no GL window; drives a real DSKY-matic over the `IDskyHardware` driver interface. The default `StderrDskyHardware` prints lamp/display updates to stderr, so this mode is also useful on a desktop for debugging the AGC output.
+
+For headless plant-only runs (JSON scenario in, final-state JSON + 1 Hz CSV out, ~150x real time, no AGC in the loop), use the `batch_sim` tool that still lives in [`Apollo-Saturn-IB/`](Apollo-Saturn-IB/README.md).
+
+### Build
+
+You need CMake 3.16+, a C++17 compiler, git, and network access for the first configure (it clones Virtual AGC at a pinned commit into `Apollo-Saturn-IB/third_party/virtualagc/` and applies the patches in `Apollo-Saturn-IB/third_party/virtualagc-patches/`). `dskymatic-studio` needs OpenGL and GLUT; `dskymatic-headless` audio needs OpenAL and ALUT:
+
+```
+sudo apt install freeglut3-dev libopenal-dev libalut-dev
+```
+
+Configure and build from the repository root:
+
+```
+cmake -S . -B build
+cmake --build build -j
+```
+
+Pass `-DDSKYMATIC_AUDIO=OFF` to drop the OpenAL/ALUT dependency (relay-click audio will be silenced).
+
+### Run `dskymatic-studio`
+
+The AGC ROM, PAD loads, and downlink tables live under `Apollo-Saturn-IB/data/`, so run the binary from that directory:
+
+```
+$ cd Apollo-Saturn-IB/data
+$ ../../build/dskymatic-studio
+```
+
+1. Starting the simulation automatically initiates a 90-second power-up sequence for the ISS (the inertial platform for the AGC). The "NO ATT" lamp will illuminate. In the terminal window where you started the application, you will see messages like these:
+
+    ```
+    scene: 1362x800, 65 top-level children, 3 textures
+    Opening ddd-77773-Colossus249.tsv
+    Records read from ddd-77773-Colossus249.tsv:  126
+    ...
+    AGC downlink: configured for Colossus249 (CmOrLm=1)
+    sim: Colossus249.bin OK (73728 bytes)
+    AGC downlink: first decoded list "Coast and Align"
+    ```
+
+2. Immediately after the simulation starts, press the **RSET** push button. This works around a bug in the current start-up sequence. If you fail to press **RSET** you may see a flashing "02" on the DSKY display -- just press **RSET** at that point and the startup sequence will proceed.
+
+3. After 15 seconds, a simulated data uplink will begin. The "UPLINK" lamp will illuminate to confirm this. This is a transfer of the Apollo 7 PAD LOAD parameters to the AGC.
+
+    ```
+    PAD LOAD STARTED at elapsed=15.010 sec (file=TM-X-62831_PAD_LOAD.txt)
+    UPLINK COMPLETE at elapsed=56.451 sec
+    ```
+
+4. At start+90 seconds, the "NO ATT" lamp will extinguish. Keep monitoring the display.
+
+    ```
+    ISS turn-on delay complete at elapsed=90.627 sec
+    NO ATT OFF (SV arm) at elapsed=90.627 sec — state-vector uplink in +45 s
+    ```
+
+5. At start+135 seconds, the vehicle position and velocity AGC State Vector will be uplinked to the AGC:
+
+    ```
+    STATE VECTOR UPLINK STARTED at elapsed=135.637 sec
+      R_ECI=[-5409656.7, 1479638.0, 3027472.3] m   |R|=6373327.5 m
+      V_ECI=[-107.8969, -394.4784, 0.0000] m/s   |V|=408.9681 m/s
+    UPLINK COMPLETE at elapsed=169.654 sec
+    ```
+
+6. Once the state vector uplink is complete, you must prepare for launch monitoring by putting the AGC into program **P01**, "Prelaunch Initialization and Alignment". To initiate **P01**, key in:
+
+    **VERB** **3** **7** **ENTR** **0** **1** **ENTR**
+
+7. **P01** will orchestrate ISS alignment for launch. The FDAI will erect onto the correct launch-pad alignment. Once correctly aligned, the AGC will then automatically switch to program **P02**, "Gyro Compassing Program", and await the **liftoff discrete** from the Saturn Instrument Unit.
+
+8. start+297 seconds -- **Ignition**
+
+9. start+300 seconds -- **Liftoff**; the AGC will automatically switch to **P11**, "Earth Orbit Insertion Monitor Program".
+
+### Run `dskymatic-headless`
+
+```
+$ cd Apollo-Saturn-IB/data
+$ ../../build/dskymatic-headless
+```
+
+The default `StderrDskyHardware` driver prints lamp, digit, and VERB/NOUN changes to stderr. On a Raspberry Pi wired into a real DSKY-matic, swap in a GPIO/serial driver that implements `IDskyHardware` (see `src/hardware/`).
 
 ## Arduino-based Drivers
 
