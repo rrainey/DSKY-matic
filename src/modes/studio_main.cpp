@@ -965,8 +965,8 @@ int main(int argc, char **argv) {
     // the sim just runs silently.
     dsky_click::init();
 
-    // Map-view data (GSHHG land/lakes/coastline binaries).  CWD is the
-    // Apollo-Saturn-IB/data/ directory, so the loader looks for
+    // Map-view data (GSHHG land/lakes/coastline binaries).  CWD is
+    // expected to be DSKY-matic/data/, so the loader looks for
     // "./earth/gshhs_i_*.bin".  Non-fatal: if init fails the map is
     // never rendered (toggle still works, draws nothing).
     g_map.init(".");

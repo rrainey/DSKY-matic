@@ -106,11 +106,11 @@ Pass `-DDSKYMATIC_AUDIO=OFF` to drop the OpenAL/ALUT dependency (relay-click aud
 
 ### Run `dskymatic-studio`
 
-The AGC ROM, PAD loads, and downlink tables live under `Apollo-Saturn-IB/data/`, so run the binary from that directory:
+The AGC ROM, PAD loads, downlink tables, panel scene and the stylized-Earth binaries live under this project's `data/` directory, so run the binary from there:
 
 ```
-$ cd Apollo-Saturn-IB/data
-$ ../../build/dskymatic-studio
+$ cd data
+$ ../build/dskymatic-studio
 ```
 
 1. Starting the simulation automatically initiates a 90-second power-up sequence for the ISS (the inertial platform for the AGC). The "NO ATT" lamp will illuminate. In the terminal window where you started the application, you will see messages like these:
@@ -163,8 +163,8 @@ $ ../../build/dskymatic-studio
 ### Run `dskymatic-headless`
 
 ```
-$ cd Apollo-Saturn-IB/data
-$ ../../build/dskymatic-headless
+$ cd data
+$ ../build/dskymatic-headless
 ```
 
 The default `StderrDskyHardware` driver prints lamp, digit, and VERB/NOUN changes to stderr. On a Raspberry Pi wired into a real DSKY-matic, swap in a GPIO/serial driver that implements `IDskyHardware` (see `src/hardware/`).

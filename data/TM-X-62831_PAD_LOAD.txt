@@ -1,0 +1,396 @@
+# TM-X-62831_PAD_LOAD.txt
+#
+# Colossus249 erasable uplink for ApolloA / batch_sim, targeted at the
+# AS-205 / Apollo 7 operational trajectory in NASA-TM-X-62831.
+#
+# Timeline (UTC):
+#   Intended liftoff (Apollo 7):  1968-10-11 15:02:45
+#   Simulation start (on pad):    1968-10-11 14:57:45   (= liftoff − 300 s)
+#   Plant LaunchDate / T_L′:      matches sim start; liftoff at elapsed ≈ 300 s
+#   Pad-load uplink:              sim t ≈ 15 s  (wall ≈ 14:58:00)
+#
+# TEPHEM (CMC clock-zero epoch, cs since 1968-07-01 00:00):
+#   Set to **sim start** (14:57:45), not liftoff.  P11 adds TIME at liftoff so
+#   TEPHEM becomes the liftoff epoch when the clock has run ~300 s.  Matches
+#   SaturnIBStack LaunchDate = {1968,10,11,14,57,45}.
+#
+# Geometry (synthesized from TM-X-62831 / as205TmX62831Presettings.ts):
+#   LAUNCHAZ  = 72° flight azimuth E of N
+#   AZIMUTH   = −80°  (CSM +Z; pad-oriented LV azimuth 100° − 180° mate)
+#   LATITUDE  = 28.521963°  (Table 3B φ_L)
+#   PADLONG   = −80.561141° (LC-34; tn-hold cite, matches prior pad)
+#
+# AZO / UNITW / AXO still from the prior pad (not re-derived).  If those were
+# tied to a liftoff-epoch TEPHEM, they may need a ~1.25° Earth-rate tweak for
+# the T−300 s clock-zero; left unchanged until a clear AZO definition is used.
+#
+# Other erasables still copied from AS-205_PAD_LOAD.txt (TN-era / generic).
+# Apollo 7 flew SUNDISK 282; Colossus249 is the sim CMC stand-in.
+#
+# Optional V25N36 (commented): if enabling AGC clock load with clock-zero at
+# sim start, use ~00:00:15.58 at uplink (elapsed 15 s + 0.58 s tx), NOT wall TOD.
+#
+# Valid for simulation start 14:57:45 (T−300 s). Uplink at start+15.0 s.
+R
+#V25N36E
+#+00000E     # +000HH  (hours since CMC clock zero = sim start)
+#+00000E     # +000MM
+#+00015E     # +0SS.SS ≈ 15.58 with tx allowance — enable if clock load desired
+#  (For wall-clock style instead, see AS-205_PAD_LOAD-orig.txt.)
+
+# ---------------------------------------------------------------------------
+V21N02E
+
+
+
+# --- EMDOT (00110–00110) — SPS mass-flow rate (FLAGFILL); PL
+00110E 01116E E  # EMDOT — SPS mass-flow rate (FLAGFILL); PL
+
+# --- SELFERAS (01341–01341) — Self-check erasable block start (cleared)
+01341E 00000E E  # SELFERAS — Self-check erasable block start (cleared)
+
+# --- RTED1 (01351–01352) — Entry VGAMMA poly coef; PL
+01351E 06607E E  # RTED1 — Entry VGAMMA poly coef; PL
+01352E 11755E E
+
+# --- entry pads (01353–01356) — DVTHRESH / HORIZALT / ALTVAR neighborhood (partial)
+01353E 00632E E  # entry pads
+01354E 00000E E
+01356E 00000E E
+
+# --- TEPHEM (01706–01710) — CMC clock-zero epoch = sim start 14:57:45 (liftoff−300s)
+01706E 00003E E  # TEPHEM — July1→1968-10-11 14:57:45 (cs)
+01707E 11545E E
+01710E 32404E E
+
+# --- AZO (01711–01712) — Earth orientation angle; PL
+01711E 30636E E  # AZO — Earth orientation angle; PL
+01712E 33227E E
+
+# --- UNITW (01713–01720) — Unit Earth polar axis in REF; aliases -AYO, AXO
+# P11: EAST = UNIT(Z × UNITW); VN1 = (UNITW × R) * ω_E (EARTHR).
+# Must be non-zero. Use DP fraction ≈1 along +Z (not B-1 frac 0.5 / 20000):
+# EARTHR does not re-UNIT, so frac 0.5 halved |VN| (~204 vs ~409 m/s).
+# REFSMMAT path calls UNIT() so either encoding gave correct X/Z axes.
+01713E 00000E E  # UNITW X — 0
+01714E 00000E E
+01715E 00000E E  # UNITW Y — 0
+01716E 00000E E
+01717E 37777E E  # UNITW Z — DP frac ≈1 (hi=37777, lo=0)
+01720E 00000E E
+
+# --- WRENDPOS (02000–02000) — Rendezvous W position weight; PL
+02000E 00240E E  # WRENDPOS — Rendezvous W position weight; PL
+
+# --- WRENDVEL (02001–02001) — Rendezvous W velocity weight; PL
+02001E 00754E E  # WRENDVEL — Rendezvous W velocity weight; PL
+
+# --- RMAX (02002–02002) — Rendezvous R max; PL
+02002E 00620E E  # RMAX — Rendezvous R max; PL
+
+# --- VMAX (02003–02003) — Rendezvous V max; PL
+02003E 03146E E  # VMAX — Rendezvous V max; PL
+
+# --- WORBPOS (02004–02004) — Orbital W position; PL
+02004E 01750E E  # WORBPOS — Orbital W position; PL
+
+# --- WORBVEL (02005–02005) — Orbital W velocity; PL
+02005E 03146E E  # WORBVEL — Orbital W velocity; PL
+
+# --- S22WSUBL (02006–02006) — P22 W subscale; PL
+02006E 00000E E  # S22WSUBL — P22 W subscale; PL
+
+# --- RPVAR (02007–02010) — RP variance; PL
+02007E 00000E E  # RPVAR — RP variance; PL
+
+# --- 02011 — Spare / gap before EMSALT (written 0)
+02011E 00000E E  # Spare / gap before EMSALT (written 0)
+
+# --- EMSALT (02017–02020) — EMS altitude; PL
+02017E 00002E E  # EMSALT — EMS altitude; PL
+02020E 24622E E
+
+# --- ATIGINC (02021–02022) — Absolute TIG increment; PL (ALFDK overlaps 2022)
+02021E 00000E E  # ATIGINC — Absolute TIG increment; PL (ALFDK overlaps 2022)
+02022E 00000E E
+
+# --- PTIGINC (02023–02024) — Preferred TIG increment; PL
+02023E 00000E E  # PTIGINC — Preferred TIG increment; PL
+02024E 00000E E
+
+# --- RLS (02025–02032) — Lunar landing-site vector; PL (zeros OK for Earth orbit)
+02025E 00000E E  # RLS
+02026E 00000E E
+02027E 00000E E
+02030E 00000E E
+02031E 00000E E
+02032E 00000E E
+
+# --- TIMEMO/VECOEM (02033–02147) — CONISEX lunar/solar ephemeris pad block; PL
+02033E 00003E E  # TIMEMO/VECOEM — CONISEX lunar/solar ephemeris pad block; PL
+02034E 20620E E
+02035E 04400E E
+02036E 77746E E
+02037E 43502E E
+02040E 00044E E
+02041E 12042E E
+02042E 00023E E
+02043E 24621E E
+02044E 00057E E
+02045E 34512E E
+02046E 00071E E
+02047E 15252E E
+02050E 00041E E
+02051E 27064E E
+02052E 00263E E
+02053E 36636E E
+02054E 77643E E
+02055E 40253E E
+02056E 77713E E
+02057E 60351E E
+02060E 77752E E
+02061E 42602E E
+02062E 77320E E
+02063E 45501E E
+02064E 77524E E
+02065E 62353E E
+02066E 76635E E
+02067E 57714E E
+02070E 77441E E
+02071E 65425E E
+02072E 77620E E
+02073E 43206E E
+02074E 75732E E
+02075E 64672E E
+02076E 01477E E
+02077E 13316E E
+02100E 00733E E
+02101E 11176E E
+02102E 02455E E
+02103E 04011E E
+02104E 04404E E
+02105E 15355E E
+02106E 02326E E
+02107E 10025E E
+02110E 10620E E
+02111E 03536E E
+02112E 75174E E
+02113E 52003E E
+02114E 76257E E
+02115E 60515E E
+02116E 75132E E
+02117E 51054E E
+02120E 67172E E
+02121E 75127E E
+02122E 73210E E
+02123E 42555E E
+02124E 72525E E
+02125E 65327E E
+02126E 01503E E
+02127E 03437E E
+02130E 00767E E
+02131E 31201E E
+02132E 60232E E
+02133E 57707E E
+02134E 71165E E
+02135E 52555E E
+02136E 75040E E
+02137E 70033E E
+02140E 10171E E
+02141E 34035E E
+02142E 60464E E
+02143E 56737E E
+02144E 71245E E
+02145E 40756E E
+02146E 00537E E
+02147E 10451E E
+
+# --- 02177 — End-of-ephemeris clear
+02177E 00000E E  # End-of-ephemeris clear
+
+# --- TAZEL1 (02432–02435) — Optics target az/el (partial of 6-word block)
+02432E 67024E E  # TAZEL1 — Optics target az/el (partial of 6-word block)
+02433E 77755E E
+02434E 60000E E
+02435E 00000E E
+
+# --- LAUNCHAZ (02633–02634) — Flight azimuth from north to X_SM (rev B-1)
+02633E 06314E E  # LAUNCHAZ — Flight azimuth from north to X_SM (rev B-1)
+02634E 31463E E
+
+# --- WMIDPOS (03000–03000) — Midcourse W position; PL
+03000E 00000E E  # WMIDPOS — Midcourse W position; PL
+
+# --- WMIDVEL (03001–03001) — Midcourse W velocity; PL
+03001E 00000E E  # WMIDVEL — Midcourse W velocity; PL
+
+# --- RVAR (03002–03003) — R variance; PL
+03002E 00000E E  # RVAR — R variance; PL
+03003E 00000E E
+
+# --- RVARMIN (03004–03005) — R variance min; PL
+03004E 00000E E  # RVARMIN — R variance min; PL
+03005E 00000E E
+
+# --- LADPAD (03007–03007) — Entry LAD pad; PL
+03007E 00173E E  # LADPAD — Entry LAD pad; PL
+
+# --- LODPAD (03010–03010) — Entry LOD pad; PL
+03010E 05605E E  # LODPAD — Entry LOD pad; PL
+
+# --- ALFAPAD (03011–03011) — Entry alpha pad; PL
+03011E 00000E E  # ALFAPAD — Entry alpha pad; PL
+
+# --- ESTROKER (03012–03012) — TVC stroke-test; PL
+03012E 00005E E  # ESTROKER — TVC stroke-test; PL
+
+# --- EKPRIME (03013–03014) — TVC gain; PL
+03013E 00200E E  # EKPRIME — TVC gain; PL
+03014E 00100E E
+
+# --- ETDECAY (03015–03015) — TVC; PL
+03015E 00000E E  # ETDECAY — TVC; PL
+
+# --- EKTLX/I (03016–03017) — TVC; PL
+03016E 30000E E  # EKTLX/I — TVC; PL
+03017E 02000E E
+
+# --- ETVCDT/2 (03020–03020) — TVC; PL
+03020E 20000E E  # ETVCDT/2 — TVC; PL
+
+# --- ETSWITCH (03021–03021) — TVC; PL
+03021E 00500E E  # ETSWITCH — TVC; PL
+
+# --- ECORFRAC (03022–03022) — TVC; PL
+03022E 04000E E  # ECORFRAC — TVC; PL
+
+# --- EREPFRAC (03023–03024) — TVC; PL
+03023E 01000E E  # EREPFRAC — TVC; PL
+03024E 10000E E
+
+# --- PACTOFF (03025–03025) — Pitch actuator offset; PL
+03025E 00133E E  # PACTOFF — Pitch actuator offset; PL
+
+# --- YACTOFF (03026–03026) — Yaw actuator offset; PL
+03026E 77727E E  # YACTOFF — Yaw actuator offset; PL
+
+# --- AP0 (03027–03027) — TVC filter A pitch; PL
+03027E 10000E E  # AP0 — TVC filter A pitch; PL
+
+# --- AP1 (03030–03031) — TVC filter; PL
+03030E 75024E E  # AP1 — TVC filter; PL
+03031E 47207E E
+
+# --- AP2 (03032–03033) — TVC filter; PL
+03032E 01066E E  # AP2 — TVC filter; PL
+03033E 33013E E
+
+# --- AP3 (03034–03035) — TVC filter; PL
+03034E 77705E E  # AP3 — TVC filter; PL
+03035E 61340E E
+
+# --- BP1 (03036–03037) — TVC filter B pitch; PL
+03036E 57377E E  # BP1 — TVC filter B pitch; PL
+03037E 74664E E
+
+# --- BP2 (03040–03041) — TVC filter; PL
+03040E 14414E E  # BP2 — TVC filter; PL
+03041E 36243E E
+
+# --- BP3 (03042–03043) — TVC filter; PL
+03042E 74624E E  # BP3 — TVC filter; PL
+03043E 73117E E
+
+# --- LEMMASS (03073–03073) — Noun 47 R2 (0 = no LM)
+03073E 00000E E  # LEMMASS — Noun 47 R2 (0 = no LM)
+
+# --- CSMMASS (03074–03074) — Noun 47 R1
+03074E 07044E E  # CSMMASS — Noun 47 R1
+
+# --- WEIGHT/G (03075–03075) — Vehicle weight (= MASS)
+03075E 07044E E  # WEIGHT/G — Vehicle weight (= MASS)
+
+# --- POLYNUM (03261–03277) — P11 open-loop pitch polynomial (15 words); PL
+03261E 00005E E  # POLYNUM — P11 open-loop pitch polynomial (15 words); PL
+03262E 77777E E
+03263E 47314E E
+03264E 00026E E
+03265E 21213E E
+03266E 00573E E
+03267E 11306E E
+03270E 77256E E
+03271E 63275E E
+03272E 00000E E
+03273E 00000E E
+03274E 00000E E
+03275E 00000E E
+03276E 00000E E
+
+# --- SATRLRT (03300–03301) — Saturn roll rate for P11; PL
+03300E 00000E E  # SATRLRT — Saturn roll rate for P11; PL
+03301E 12144E E
+
+# --- RPSTART (03302–03302) — Pitch/roll start time after liftoff; PL
+03302E 01750E E  # RPSTART — Pitch/roll start time after liftoff; PL
+
+# --- POLYSTOP (03303–03303) — Poly cutoff minus RPSTART (sec); PL
+03303E 46013E E  # POLYSTOP — Poly cutoff minus RPSTART (sec); PL
+
+# --- LAT(SPL) (03400–03401) — Splashdown latitude; PL
+03400E 02254E E  # LAT(SPL) — Splashdown latitude; PL
+03401E 01014E E
+
+# --- LNG(SPL) (03402–03403) — Splashdown longitude; PL
+03402E 76363E E  # LNG(SPL) — Splashdown longitude; PL
+03403E 60376E E
+
+# --- ECSTEER (03424–03424) — P40 external delta-V steer; PL
+03424E 00000E E  # ECSTEER — P40 external delta-V steer; PL
+
+# === Overrides (re-write key mission geometry / mass) ===
+
+# --- PADLONG (01263–01264) — Launch-pad longitude; PL (2 words)
+01263E 30655E E  # PADLONG — pad longitude (override)
+01264E 62253E E
+
+# --- AZIMUTH (02400–02401) — CSM +Z vs north on pad (rev B-1)
+# AZIMUTH ≈ -80 deg (CSM); LV pad orientation 100 deg would be 10707 if loading LV frame
+02400E 30707E E  # AZIMUTH — CSM +Z on pad; LV 100 deg-true, CSM 180 from LV +Z
+02401E 43434E E
+
+# --- LATITUDE (02402–02403) — Launch-pad latitude
+02402E 02422E E  # LATITUDE
+02403E 02075E E
+
+# --- LAUNCHAZ (02633–02634) — Flight azimuth from north to X_SM (rev B-1)
+02633E 06314E E  # LAUNCHAZ — 72 deg flight azimuth (TM-X-62831); override confirms bulk
+02634E 31463E E
+
+# --- CSMMASS (03074–03074) — Noun 47 R1
+03074E 06454E E  # CSMMASS (override)
+
+# --- WEIGHT/G (03075–03075) — Vehicle weight (= MASS)
+03075E 30000E E  # WEIGHT/G (override)
+
+# --- IAVG/TLX (03072–03072) — Mass-prop / TVC
+03072E 00000E E  # IAVG/TLX (override)
+
+# --- LEMMASS (03073–03073) — Noun 47 R2 (0 = no LM)
+03073E 00000E E  # LEMMASS (override)
+# must be in P00 or P02 to accept state vector uplink on the ground
+#V37E 00E
+# Clear UPLK ACTY light AND release any locked-display state left over
+# from the V21 N02 dialog.  KEY REL (K) both extinguishes UPLK ACTY and
+# releases DSPLOCK; RSET (R) alone leaves DSPLOCK set and any subsequent
+# V37 dispatch gets swallowed.  The astronaut is expected to enter
+# V37 ENTR 0 1 ENTR manually after the NO ATT lamp extinguishes plus
+# NOTE: for VERB 37 (Change Program) the DSKY procedure is
+#   V - 3 - 7 - ENTR - 0 - 1 - ENTR    (do NOT press NOUN)
+# The Noun key runs NVCOM which resets REQRET=0, which routes the next
+# entry).  ENTPAS0 re-invokes MMCHANG which clears NOUNREG, so the
+# The historical "V37E N01E" pad-load sequence used the N key and
+# therefore silently failed to start P01.
+
+K
+# Display Time
+#V16N36E

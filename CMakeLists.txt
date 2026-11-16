@@ -16,10 +16,10 @@ endif()
 # ---------------------------------------------------------------------------
 add_subdirectory(Apollo-Saturn-IB EXCLUDE_FROM_ALL)
 
-# Re-expose Apollo-Saturn-IB's data dir for the mode binaries.
-set(SATURN_IB_DATA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Apollo-Saturn-IB/data
-    CACHE PATH "Apollo-Saturn-IB runtime data (ROM, PAD loads, downlink TSVs)")
-
+# Runtime data (AGC ROM, PAD loads, downlink TSVs, panel scene, Earth
+# map binaries) lives in this project's data/ subtree.  Run the mode
+# binaries from there.  batch_sim's scenario files stay in the
+# submodule under Apollo-Saturn-IB/data/examples/.
 set(DSKYMATIC_AUDIO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/audio
     CACHE PATH "DSKY-matic audio assets (relay clicks, etc.)")
 

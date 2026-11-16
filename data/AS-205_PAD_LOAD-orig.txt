@@ -1,0 +1,37 @@
+# Valid for simulation start time of 14:57:45.0
+# Set clock to T-Minus five minutes PLUS 15 seconds (uplink starts at start+15)
+R
+V25N36E
++00014E     # +000HH  (hours)
++00058E     # +000MM  (minutes)
++00058E     # +0SS.SS (centi-seconds) (includes time allowance for transmission of data (0.58 sec))
+
+# Various pad load settings
+V21N02E
+01263E 30655E E
+01264E 22312E E
+
+# AZIMUTH: CSM +Z orientation on pad (L/V 100 deg-true; CSM mated 180 degrees from L/V +Z axis)
+02400E 10707E E
+#02400E 70706E E
+02401E 03434E E
+
+02402E 02422E E
+02403E 02075E E
+
+# LAUNCHAZ: Launch Azimuth (82.82 deg)
+02633E 07271E E
+02634E 07274E E
+
+# CM/LM Weights
+03074E 06454E E
+03075E 30000E E
+03072E 00000E E
+03073E 00000E
+
+#V37E N00E
+
+#V37E N01E
+
+# Display Time
+V16N36E

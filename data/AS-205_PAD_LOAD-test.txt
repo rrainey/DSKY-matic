@@ -1,0 +1,71 @@
+# Valid for simulation start time of 14:57:45.0
+# Set clock to T-Minus five minutes PLUS 15 seconds (uplink starts at start+15)
+R
+#V25N36E
+#+00014E     # +000HH  (hours)
+#+00058E     # +000MM  (minutes)
+#+00058E     # +0SS.SS (centi-seconds) (includes time allowance for transmission of data (0.58 sec))
+
+# Set TLIFTOFF 285 seconds in the future
+V70E00001E27524E
+
+# pause 95 seconds
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!
+
+# Various pad load settings
+V21N02E
+
+#TEPHEM
+01706E 00003E E
+01707E 07510E E
+01710E 37064E E
+#AZ0
+01711E 30636E E
+01712E 33227E E
+
+# PITCH POLYNOMIAL (taken from comments in P11.s for 249 indicating valid for SUNDISK)
+03261E 00005E E
+03262E 77776E E
+03263E 70462E E
+03264E 00026E E
+03265E 21213E E
+03266E 00573E E
+03267E 11306E E
+03270E 77256E E
+03271E 54501E E
+
+# RPSTART (10 sec.)/POLYSTOP (133 sec.) [ must be pad loaded to enable FDAI steering signals]
+03302E 01750E E
+03303E 46013E E
+
+#?
+01263E 30655E E
+01264E 22312E E
+
+# AZIMUTH: CSM +Z orientation on pad (L/V 100 deg-true; CSM mated 180 degrees from L/V +Z axis)
+#02400E 10707E E
+02400E 70706E E
+02401E 03434E E
+
+02402E 02422E E
+02403E 02075E E
+
+# LAUNCHAZ: Launch Azimuth (82.82 deg)
+02633E 07271E E
+02634E 07274E E
+
+# CM/LM Weights
+03074E 06454E E
+03075E 30000E E
+03072E 00000E E
+03073E 00000E
+
+V37E 00E
+
+#V37E N01E
+
+# Display Time
+V16N36E
