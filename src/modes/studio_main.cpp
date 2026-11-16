@@ -778,7 +778,8 @@ static void print_usage(const char *argv0) {
         "                          align off, no fine-align axis, inertial\n"
         "                          reference).  Writes saved-state-<ISO8601>\n"
         "                          and exits cleanly.\n"
-        "  --resume FILE           Load a saved state and continue from it.\n"
+        "  --resume [FILE]         Load a saved state and continue from it.\n"
+        "                          FILE defaults to \"saved-state\" (in CWD).\n"
         "                          The ISS turn-on choreography is skipped.\n"
         "  --save-force            Bypass the CDU-idle save-point gate.  Only\n"
         "                          for testing the plumbing; may produce an\n"
@@ -847,8 +848,15 @@ int main(int argc, char **argv) {
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--save-state-time") == 0 && i + 1 < argc) {
             g_save_target_sec = std::atof(argv[++i]);
-        } else if (std::strcmp(argv[i], "--resume") == 0 && i + 1 < argc) {
-            g_save_resume_file = argv[++i];
+        } else if (std::strcmp(argv[i], "--resume") == 0) {
+            // Optional filename: if the next arg exists and doesn't look
+            // like another flag, consume it; otherwise default to
+            // "saved-state" in the CWD.
+            if (i + 1 < argc && argv[i + 1][0] != '-') {
+                g_save_resume_file = argv[++i];
+            } else {
+                g_save_resume_file = "saved-state";
+            }
         } else if (std::strcmp(argv[i], "--save-force") == 0) {
             g_save_force = true;
         } else if (std::strcmp(argv[i], "--max-window") == 0) {
