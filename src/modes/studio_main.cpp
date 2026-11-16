@@ -19,9 +19,12 @@
 #include <save_state.h>
 #include <agc_engine.h>
 
+#include "map_view.h"
+
 #include <GL/glut.h>
 
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -42,6 +45,32 @@ static double g_save_target_sec = -1.0;
 static bool   g_save_force      = false;      // ignore CDU-idle gate (testing)
 static std::string g_save_resume_file;
 static std::chrono::steady_clock::time_point g_save_last_defer_log;
+
+// Map-view mode: when true, the StatusWindow draws the stylized launch
+// map (Earth + trajectory) instead of the downlink text.  Toggled by 'v'.
+static bool                g_show_map = true;
+static dskymatic::MapView  g_map;
+static double              g_last_map_sample_sec = -1.0;
+static bool                g_sib_separated       = false;
+
+// Known launch-site lat/lon used for pre-liftoff camera framing AND
+// for the longitude-shift workaround below.
+constexpr double kKSCLatDeg = 28.5229;
+constexpr double kKSCLonDeg = -80.5614;
+
+// Workaround for rrainey/Apollo-Saturn-IB#1: OUT11/OUT12 native lat/lon
+// come out about a degree west of the true ECEF location because of
+// the plant's GMST-reference mismatch.  We latch a constant longitude
+// shift at the first post-liftoff tick (KSC known pad lon − OUT11 lon
+// at that tick) and apply it to every subsequent OUT11/OUT12 sample
+// so the trajectory starts exactly at the Cape and tracks plant-
+// reported motion thereafter.
+static double g_plant_lon_shift_deg  = 0.0;
+static bool   g_plant_lon_shift_set  = false;
+
+static double shifted_lon(double raw_lon_deg) {
+    return raw_lon_deg + g_plant_lon_shift_deg;
+}
 
 // Find a scene node by Name across the tree (including into components).
 static panel::SceneNode *find_node(panel::SceneNode *n, const std::string &name) {
@@ -392,9 +421,65 @@ static void drain_agc_channel_output() {
 
 static void display() {
     glClearColor(0.10f, 0.10f, 0.12f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     panel::begin_frame(*g_scene, g_win_w, g_win_h);
     panel::render_scene(*g_scene);
+
+    // Overlay the stylized launch map on the StatusWindow rect when the
+    // map toggle is on.  MapView saves+restores GL state around itself.
+    if (g_show_map && g_status_window && g_lv) {
+        // Compute the StatusWindow rect in scene-ortho coords from its
+        // vertex box + Location.
+        float min_x = 1e30f, min_y = 1e30f, max_x = -1e30f, max_y = -1e30f;
+        for (const auto &v : g_status_window->vertices) {
+            if (v.x < min_x) min_x = v.x;
+            if (v.y < min_y) min_y = v.y;
+            if (v.x > max_x) max_x = v.x;
+            if (v.y > max_y) max_y = v.y;
+        }
+        float rx = g_status_window->location.x + min_x;
+        float ry = g_status_window->location.y + min_y;
+        float rw = max_x - min_x;
+        float rh = max_y - min_y;
+
+        const auto *o = g_lv->GetModelOutputs();
+        // Camera target: KSC hardcoded pre-liftoff (OUT22's lat/lon is
+        // in a different frame than OUT11's — issue rrainey/
+        // Apollo-Saturn-IB#1 — so switching at liftoff would jerk the
+        // camera).  Post-liftoff we track OUT11 (then OUT12) directly
+        // in the same frame the trajectory samples live in.
+        double vlat, vlon, valt, alt_display, vmag;
+        if (!o->bLiftoff) {
+            vlat = kKSCLatDeg; vlon = kKSCLonDeg; valt = 0.0;
+            alt_display = 0.0;
+            vmag        = 0.0;
+        } else if (!o->bStageSep) {
+            vlat = o->OUT11[0]; vlon = shifted_lon(o->OUT11[1]); valt = o->OUT11[2];
+            alt_display = valt;
+            double vx = o->OUT11[6], vy = o->OUT11[7], vz = o->OUT11[8];
+            vmag = std::sqrt(vx*vx + vy*vy + vz*vz);
+        } else {
+            vlat = o->OUT12[0]; vlon = shifted_lon(o->OUT12[1]); valt = o->OUT12[2];
+            alt_display = valt;
+            // OUT12 doesn't carry Ve slots — reuse S-IB wire until plant
+            // exposes an S-IVB Ve; close enough at low altitudes.
+            double vx = o->OUT11[6], vy = o->OUT11[7], vz = o->OUT11[8];
+            vmag = std::sqrt(vx*vx + vy*vy + vz*vz);
+        }
+
+        sim::Date now = sim::GetSimClock()->GetCurrentSimulationTime();
+        int y, mo, d, h, mi;  double se;
+        now.GetDate(&y, &mo, &d, &h, &mi, &se);
+
+        double t_sim = sim::GetSimClock()->GetElapsedTime();
+        g_map.render(rx, ry, rw, rh,
+                     g_scene->width, g_scene->height,
+                     t_sim,
+                     vlat, vlon, valt,
+                     alt_display, vmag,
+                     y, mo, d, h, mi, se);
+    }
+
     glutSwapBuffers();
 }
 
@@ -437,6 +522,47 @@ static void idle() {
     update_fdai_from_sim();
     update_text_from_sim();
     maybe_save_state();
+
+    // Trajectory sampler for the map view.  Only push samples once the
+    // vehicle has lifted off — pre-liftoff the vehicle is stationary
+    // and OUT22/OUT11 use different frame conventions (see
+    // rrainey/Apollo-Saturn-IB#1), so any pre-liftoff samples pulled
+    // from OUT22 would appear at a different spot than the first
+    // post-liftoff sample from OUT11.  Using OUT11/OUT12 native
+    // lat/lon fields keeps every post-liftoff sample in one frame.
+    if (g_lv) {
+        sim::SimClock *ck = sim::GetSimClock();
+        double t = ck ? ck->GetElapsedTime() : 0.0;
+        const auto *o = g_lv->GetModelOutputs();
+        if (o->bLiftoff &&
+            (t - g_last_map_sample_sec >= 1.0 || g_last_map_sample_sec < 0))
+        {
+            // Latch the OUT11 longitude shift on the first post-liftoff
+            // sample so the trajectory starts at the Cape, not where
+            // the plant thinks the Cape is (see comment above).
+            if (!g_plant_lon_shift_set) {
+                g_plant_lon_shift_set = true;
+                g_plant_lon_shift_deg = kKSCLonDeg - o->OUT11[1];
+                std::fprintf(stderr,
+                    "map: OUT11 lon shift at liftoff = %+0.3f°  "
+                    "(plant %.3f  KSC %.3f)\n",
+                    g_plant_lon_shift_deg, o->OUT11[1], kKSCLonDeg);
+            }
+            double lat, lon, alt;
+            if (!o->bStageSep) {
+                lat = o->OUT11[0]; lon = shifted_lon(o->OUT11[1]); alt = o->OUT11[2];
+            } else {
+                lat = o->OUT12[0]; lon = shifted_lon(o->OUT12[1]); alt = o->OUT12[2];
+            }
+            g_map.push_sample(t, lat, lon, alt, /*is_sib_spent=*/false);
+            if (o->bStageSep) {
+                g_map.push_sample(t, o->OUT11[0], shifted_lon(o->OUT11[1]),
+                                  o->OUT11[2], /*is_sib_spent=*/true);
+                g_sib_separated = true;
+            }
+            g_last_map_sample_sec = t;
+        }
+    }
 
     // Poll AGC input channels 030-033 (sim -> AGC discretes).  Log
     // whenever any change with per-bit decode so we can see exactly
@@ -596,6 +722,10 @@ static void mouse(int button, int state, int mx, int my) {
 static void key(unsigned char c, int, int) {
     if (c == 27 || c == 'q') std::exit(0);
     if (c == 's') { panel::g_render_spheres_only = !panel::g_render_spheres_only; }
+    if (c == 'v') {
+        g_show_map = !g_show_map;
+        std::fprintf(stderr, "map-view: %s\n", g_show_map ? "on" : "off");
+    }
 }
 
 static void print_usage(const char *argv0) {
@@ -709,7 +839,10 @@ int main(int argc, char **argv) {
     // typically gives 4x by default (8x on most modern GPUs).  Combined
     // with glEnable(GL_MULTISAMPLE) below, this smooths polygon edges
     // for DSKY digits, FDAI needles, and the panel outline.
-    glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_MULTISAMPLE);
+    // GLUT_DEPTH is required for the map-view 3D renderer; without it,
+    // depth test silently fails and nothing on the sphere beyond the
+    // first draw is visible.
+    glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_MULTISAMPLE | GLUT_DEPTH);
     int init_w = g_scene->width, init_h = g_scene->height;
     double window_scale =
         pick_window_size(max_window, g_scene->width, g_scene->height,
@@ -781,6 +914,12 @@ int main(int argc, char **argv) {
     // Relay-click audio (OpenAL+alut, per-bank).  Non-fatal if it fails —
     // the sim just runs silently.
     dsky_click::init();
+
+    // Map-view data (GSHHG land/lakes/coastline binaries).  CWD is the
+    // Apollo-Saturn-IB/data/ directory, so the loader looks for
+    // "./earth/gshhs_i_*.bin".  Non-fatal: if init fails the map is
+    // never rendered (toggle still works, draws nothing).
+    g_map.init(".");
 
     // Resume from a saved-state file, if requested.  The bridge has
     // already been constructed (ROM loaded, erasable patches applied);
