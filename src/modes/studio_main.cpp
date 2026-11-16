@@ -53,6 +53,16 @@ static dskymatic::MapView  g_map;
 static double              g_last_map_sample_sec = -1.0;
 static bool                g_sib_separated       = false;
 
+// Apollo 7 mission patch (NASA photo S68-26668, background removed).
+// Drawn as a textured quad in the top-right of the scene — a region
+// left intentionally empty by the panel layout.
+static unsigned int        g_patch_tex = 0;
+static int                 g_patch_w   = 0;
+static int                 g_patch_h   = 0;
+constexpr float            kPatchCenterX   = 1200.0f;  // scene coords
+constexpr float            kPatchCenterYTD = 119.0f;   // from top of scene
+constexpr float            kPatchHeightPx  = 210.0f;   // at default (native) window size
+
 // Known launch-site lat/lon used for pre-liftoff camera framing AND
 // for the longitude-shift workaround below.
 constexpr double kKSCLatDeg = 28.5229;
@@ -424,6 +434,35 @@ static void display() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     panel::begin_frame(*g_scene, g_win_w, g_win_h);
     panel::render_scene(*g_scene);
+
+    // Apollo 7 mission patch overlay (top-right of scene).  Panel
+    // renderer already set up a scene-coords ortho, so we just draw
+    // a textured quad at the specified scene location.  Aspect is
+    // preserved from the loaded PNG; height is held at kPatchHeightPx
+    // of scene-y units (so it scales with window size automatically
+    // via the scene→viewport mapping).
+    if (g_patch_tex != 0 && g_patch_w > 0 && g_patch_h > 0) {
+        float h  = kPatchHeightPx;
+        float w  = h * ((float)g_patch_w / (float)g_patch_h);
+        float cx = kPatchCenterX;
+        float cy = (float)g_scene->height - kPatchCenterYTD;  // Y-down → GL Y-up
+        float x0 = cx - 0.5f * w, x1 = cx + 0.5f * w;
+        float y0 = cy - 0.5f * h, y1 = cy + 0.5f * h;
+        glEnable(GL_TEXTURE_2D);
+        glBindTexture(GL_TEXTURE_2D, g_patch_tex);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glDisable(GL_DEPTH_TEST);
+        glColor4f(1, 1, 1, 1);
+        glBegin(GL_QUADS);
+          glTexCoord2f(0, 0); glVertex2f(x0, y0);
+          glTexCoord2f(1, 0); glVertex2f(x1, y0);
+          glTexCoord2f(1, 1); glVertex2f(x1, y1);
+          glTexCoord2f(0, 1); glVertex2f(x0, y1);
+        glEnd();
+        glDisable(GL_TEXTURE_2D);
+        glDisable(GL_BLEND);
+    }
 
     // Overlay the stylized launch map on the StatusWindow rect when the
     // map toggle is on.  MapView saves+restores GL state around itself.
@@ -869,6 +908,17 @@ int main(int argc, char **argv) {
     glEnable(GL_MULTISAMPLE);
 
     panel::load_scene_textures(*g_scene);
+
+    // Apollo 7 mission patch, drawn as a decorative overlay in the
+    // top-right of the scene (NASA S68-26668, non-commercial use per
+    // https://www.nasa.gov/nasa-brand-center/images-and-media/).
+    g_patch_tex = panel::load_texture_file("textures/apollo7_patch.png",
+                                           &g_patch_w, &g_patch_h);
+    if (g_patch_tex == 0)
+        std::fprintf(stderr, "apollo7_patch: texture failed to load\n");
+    else
+        std::fprintf(stderr, "apollo7_patch: %dx%d loaded as tex %u\n",
+                     g_patch_w, g_patch_h, g_patch_tex);
 
     // Match DSKYELSegmentClass::Initialize (from the original DSKY segment code)
     // and DSKYELSignClass::Initialize (from the original DSKY sign code) which

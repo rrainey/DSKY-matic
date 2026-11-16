@@ -36,14 +36,32 @@ constexpr float kNightFactor = 0.22f;  // multiplier on land color, night side
 constexpr float kTerminatorSoftnessDeg = 8.0f;  // ±range of the soft blend
 
 // Camera tunables.  The camera is placed on the vehicle's meridional
-// plane, south of the vehicle, at a slant distance kCamSlantDistKm
-// and at an altitude chosen (per-frame) so the Earth's north limb
-// projects (FOV/2 − kCamLimbMarginDeg) above the vehicle on screen.
-// That keeps the vehicle framed with enough headroom to always show
-// the curving horizon above it.  See solve_camera_altitude().
-constexpr double kCamSlantDistKm   = 1108.0;
+// plane, south of the vehicle, at a slant distance that scales with
+// the vehicle's ECI speed (see slant_dist_for_velocity_mps), and at
+// an altitude chosen (per-frame) so the Earth's north limb projects
+// (FOV/2 − kCamLimbMarginDeg) above the vehicle on screen.  That
+// keeps the vehicle framed with enough headroom to always show the
+// curving horizon above it.  See solve_camera_altitude().
+// Camera slant distance is a linear function of the vehicle's ECI
+// speed, holding "close-in" on the pad and rising as the vehicle
+// approaches orbital velocity.  Rationale: at low speed the story is
+// the lofting of the vehicle off the pad / off the cape, which reads
+// best with a close-in chase camera; at orbital speed the story is
+// the ground track across the globe, which needs a pulled-back view.
 constexpr double kCamFOVdeg        =   28.0;
 constexpr double kCamLimbMarginDeg =    1.0;   // limb lands (FOV/2 − this) above V
+constexpr double kCamSlantNearKm   =  332.0;   // at or below kCamVNearFPS
+constexpr double kCamSlantFarKm    = 1108.0;   // at or above kCamVFarFPS
+constexpr double kCamVNearFPS      =  4000.0;
+constexpr double kCamVFarFPS       = 26500.0;
+
+static double slant_dist_for_velocity_mps(double v_mps) {
+    double v_fps = v_mps / kM_PER_FT;
+    if (v_fps <= kCamVNearFPS) return kCamSlantNearKm;
+    if (v_fps >= kCamVFarFPS)  return kCamSlantFarKm;
+    double t = (v_fps - kCamVNearFPS) / (kCamVFarFPS - kCamVNearFPS);
+    return kCamSlantNearKm + t * (kCamSlantFarKm - kCamSlantNearKm);
+}
 
 // Timeline (AS-205): approximate mission-event times post-liftoff (sec).
 // label_side = +1 → label above the baseline, 0 → below, −1 → tick only
@@ -55,7 +73,7 @@ constexpr TimelineEvent kAS205Events[] = {
     { 144.0, nullptr,     -1 },  // IECO — tick only
     { 152.0, "MECO",       1 },  // above
     { 155.0, "STAGING",    0 },  // below  (S-IB sep + S-IVB ignition)
-    { 180.0, "IGM START",  1 },  // above
+    { 180.0, "IGM\nSTART", 1 },  // above, two-line left-justified
     { 614.0, "SECO / INS", 0 },  // below
 };
 
@@ -118,7 +136,11 @@ static void solve_camera_altitude(double h_v_m, double D_m, double beta_deg,
         return alpha - delta;
     };
 
-    double lo = r_v + 200000.0;              // 200 km above vehicle, well above the dip
+    // Floor scales with D so the search range contains the solution
+    // even when the camera is pulled in close (small D).  15 % of D
+    // puts the floor comfortably above the limb-at-horizon dip while
+    // still allowing low-altitude solutions for small D.
+    double lo = r_v + std::max(30000.0, 0.15 * D_m);
     double hi = r_v + D_m - 10000.0;         // just below η = 0 (pure overhead)
     if (hi < lo) hi = lo;                    // D_m smaller than margin — degenerate
     // Make sure the target lies in [f(lo), f(hi)]; clamp otherwise.
@@ -598,8 +620,9 @@ void MapView::render(float x_scene, float y_scene, float w_scene, float h_scene,
     V3 veh_u = geo_to_unit_space(vehicle_lat_deg, vehicle_lon_deg, vehicle_alt_m);
     double h_c_m = 0.0, eta_deg = 0.0;
     double beta_deg = 0.5 * kCamFOVdeg - kCamLimbMarginDeg;
+    double slant_km = slant_dist_for_velocity_mps(display_velocity_mps);
     solve_camera_altitude(vehicle_alt_m,
-                          kCamSlantDistKm * 1000.0,
+                          slant_km * 1000.0,
                           beta_deg,
                           h_c_m, eta_deg);
     double cam_lat = vehicle_lat_deg - eta_deg;
@@ -711,7 +734,7 @@ void MapView::render(float x_scene, float y_scene, float w_scene, float h_scene,
     const float tx       = 10.0f;
     const float label_h  = 22.0f;  // was 11
     const float ch       = 32.0f;  // was 16  (value text height)
-    float       ty       = (float)px_h - 72.0f - 0.15f * (float)px_h;
+    float       ty       = (float)px_h - 72.0f - 0.08f * (float)px_h;
     char buf[64];
     draw_stroke_text(tx, ty, label_h, "ALTITUDE", 0.55f, 0.55f, 0.55f);
     ty -= ch * 1.2f;
@@ -737,7 +760,7 @@ void MapView::render(float x_scene, float y_scene, float w_scene, float h_scene,
     const int   met_n  = (int)std::strlen(buf);
     const float met_w  = met_n * met_h * 0.6f;  // stroke mono advance = 0.6 * cell_h
     draw_stroke_text(px_w / 2.0f - met_w * 0.5f,
-                     (float)px_h - 56.0f,       // was 28 (= h/2 below top)
+                     (float)px_h - 38.0f,       // 50% of met_h higher than before
                      met_h, buf,
                      0.95f, 0.95f, 0.95f);
 
@@ -789,12 +812,29 @@ void MapView::render(float x_scene, float y_scene, float w_scene, float h_scene,
           glVertex2f(ex, tl_y - 8.0f); glVertex2f(ex, tl_y + 8.0f);
         glEnd();
         if (e.label_side >= 0 && e.label && e.label[0] != '\0') {
-            float lab_w = (float)std::strlen(e.label) * tl_label_h * 0.6f;
-            float lab_y = (e.label_side == 1)
-                          ? (tl_y + 14.0f)
-                          : (tl_y - (tl_label_h + 6.0f));
-            draw_stroke_text(ex - lab_w * 0.5f, lab_y,
-                             tl_label_h, e.label, g, g, g);
+            // Multi-line (contains '\n'): left-justify each line at the
+            // tick, stack upward from a baseline just above the tick.
+            // Single-line: centre under/over the tick as before.
+            const char *nl = std::strchr(e.label, '\n');
+            if (nl) {
+                char line1[32], line2[32];
+                size_t n1 = (size_t)(nl - e.label);
+                if (n1 >= sizeof line1) n1 = sizeof line1 - 1;
+                std::memcpy(line1, e.label, n1); line1[n1] = '\0';
+                std::snprintf(line2, sizeof line2, "%s", nl + 1);
+                const float line_gap = 3.0f;
+                const float bot_y    = tl_y + 10.0f;
+                const float top_y    = bot_y + tl_label_h + line_gap;
+                draw_stroke_text(ex, top_y, tl_label_h, line1, g, g, g);
+                draw_stroke_text(ex, bot_y, tl_label_h, line2, g, g, g);
+            } else {
+                float lab_w = (float)std::strlen(e.label) * tl_label_h * 0.6f;
+                float lab_y = (e.label_side == 1)
+                              ? (tl_y + 14.0f)
+                              : (tl_y - (tl_label_h + 6.0f));
+                draw_stroke_text(ex - lab_w * 0.5f, lab_y,
+                                 tl_label_h, e.label, g, g, g);
+            }
         }
     }
 
