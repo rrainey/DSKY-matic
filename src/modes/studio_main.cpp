@@ -63,24 +63,10 @@ constexpr float            kPatchCenterX   = 1200.0f;  // scene coords
 constexpr float            kPatchCenterYTD = 119.0f;   // from top of scene
 constexpr float            kPatchHeightPx  = 210.0f;   // at default (native) window size
 
-// Known launch-site lat/lon used for pre-liftoff camera framing AND
-// for the longitude-shift workaround below.
+// Known launch-site lat/lon used for pre-liftoff camera framing (the
+// plant's ECI_to_LLA chain returns NaN until bLiftoff goes true).
 constexpr double kKSCLatDeg = 28.5229;
 constexpr double kKSCLonDeg = -80.5614;
-
-// Workaround for rrainey/Apollo-Saturn-IB#1: OUT11/OUT12 native lat/lon
-// come out about a degree west of the true ECEF location because of
-// the plant's GMST-reference mismatch.  We latch a constant longitude
-// shift at the first post-liftoff tick (KSC known pad lon − OUT11 lon
-// at that tick) and apply it to every subsequent OUT11/OUT12 sample
-// so the trajectory starts exactly at the Cape and tracks plant-
-// reported motion thereafter.
-static double g_plant_lon_shift_deg  = 0.0;
-static bool   g_plant_lon_shift_set  = false;
-
-static double shifted_lon(double raw_lon_deg) {
-    return raw_lon_deg + g_plant_lon_shift_deg;
-}
 
 // Find a scene node by Name across the tree (including into components).
 static panel::SceneNode *find_node(panel::SceneNode *n, const std::string &name) {
@@ -482,27 +468,23 @@ static void display() {
         float rh = max_y - min_y;
 
         const auto *o = g_lv->GetModelOutputs();
-        // Camera target: KSC hardcoded pre-liftoff (OUT22's lat/lon is
-        // in a different frame than OUT11's — issue rrainey/
-        // Apollo-Saturn-IB#1 — so switching at liftoff would jerk the
-        // camera).  Post-liftoff we track OUT11 (then OUT12) directly
-        // in the same frame the trajectory samples live in.
+        // Camera target: KSC hardcoded pre-liftoff (plant's ECI_to_LLA
+        // returns NaN until bLiftoff).  Post-liftoff we track OUT11
+        // (then OUT12) — both in native plant ECEF lat/lon.
         double vlat, vlon, valt, alt_display, vmag;
         if (!o->bLiftoff) {
             vlat = kKSCLatDeg; vlon = kKSCLonDeg; valt = 0.0;
             alt_display = 0.0;
             vmag        = 0.0;
         } else if (!o->bStageSep) {
-            vlat = o->OUT11[0]; vlon = shifted_lon(o->OUT11[1]); valt = o->OUT11[2];
+            vlat = o->OUT11[0]; vlon = o->OUT11[1]; valt = o->OUT11[2];
             alt_display = valt;
             double vx = o->OUT11[6], vy = o->OUT11[7], vz = o->OUT11[8];
             vmag = std::sqrt(vx*vx + vy*vy + vz*vz);
         } else {
-            vlat = o->OUT12[0]; vlon = shifted_lon(o->OUT12[1]); valt = o->OUT12[2];
+            vlat = o->OUT12[0]; vlon = o->OUT12[1]; valt = o->OUT12[2];
             alt_display = valt;
-            // OUT12 doesn't carry Ve slots — reuse S-IB wire until plant
-            // exposes an S-IVB Ve; close enough at low altitudes.
-            double vx = o->OUT11[6], vy = o->OUT11[7], vz = o->OUT11[8];
+            double vx = o->OUT12[6], vy = o->OUT12[7], vz = o->OUT12[8];
             vmag = std::sqrt(vx*vx + vy*vy + vz*vz);
         }
 
@@ -563,12 +545,8 @@ static void idle() {
     maybe_save_state();
 
     // Trajectory sampler for the map view.  Only push samples once the
-    // vehicle has lifted off — pre-liftoff the vehicle is stationary
-    // and OUT22/OUT11 use different frame conventions (see
-    // rrainey/Apollo-Saturn-IB#1), so any pre-liftoff samples pulled
-    // from OUT22 would appear at a different spot than the first
-    // post-liftoff sample from OUT11.  Using OUT11/OUT12 native
-    // lat/lon fields keeps every post-liftoff sample in one frame.
+    // vehicle has lifted off — the plant's ECI_to_LLA chain returns
+    // NaN pre-liftoff.
     if (g_lv) {
         sim::SimClock *ck = sim::GetSimClock();
         double t = ck ? ck->GetElapsedTime() : 0.0;
@@ -576,26 +554,15 @@ static void idle() {
         if (o->bLiftoff &&
             (t - g_last_map_sample_sec >= 1.0 || g_last_map_sample_sec < 0))
         {
-            // Latch the OUT11 longitude shift on the first post-liftoff
-            // sample so the trajectory starts at the Cape, not where
-            // the plant thinks the Cape is (see comment above).
-            if (!g_plant_lon_shift_set) {
-                g_plant_lon_shift_set = true;
-                g_plant_lon_shift_deg = kKSCLonDeg - o->OUT11[1];
-                std::fprintf(stderr,
-                    "map: OUT11 lon shift at liftoff = %+0.3f°  "
-                    "(plant %.3f  KSC %.3f)\n",
-                    g_plant_lon_shift_deg, o->OUT11[1], kKSCLonDeg);
-            }
             double lat, lon, alt;
             if (!o->bStageSep) {
-                lat = o->OUT11[0]; lon = shifted_lon(o->OUT11[1]); alt = o->OUT11[2];
+                lat = o->OUT11[0]; lon = o->OUT11[1]; alt = o->OUT11[2];
             } else {
-                lat = o->OUT12[0]; lon = shifted_lon(o->OUT12[1]); alt = o->OUT12[2];
+                lat = o->OUT12[0]; lon = o->OUT12[1]; alt = o->OUT12[2];
             }
             g_map.push_sample(t, lat, lon, alt, /*is_sib_spent=*/false);
             if (o->bStageSep) {
-                g_map.push_sample(t, o->OUT11[0], shifted_lon(o->OUT11[1]),
+                g_map.push_sample(t, o->OUT11[0], o->OUT11[1],
                                   o->OUT11[2], /*is_sib_spent=*/true);
                 g_sib_separated = true;
             }
