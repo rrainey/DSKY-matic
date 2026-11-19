@@ -470,9 +470,20 @@ static void display() {
         const auto *o = g_lv->GetModelOutputs();
         // Camera target: KSC hardcoded pre-liftoff (plant's ECI_to_LLA
         // returns NaN until bLiftoff).  Post-liftoff we track OUT11
-        // (then OUT12) — both in native plant ECEF lat/lon.
+        // (then OUT12) — both in native plant ECEF lat/lon.  There's
+        // a one-tick (0,0,0) transient on the first tick that bLiftoff
+        // goes true: the S-IB integrator's Out11 register is still
+        // zero before the first integrator stride populates it from
+        // Xe_0_m.  Treat that single tick as still-pre-liftoff for
+        // display purposes so the camera doesn't jump to null-island.
+        auto stage_valid = [](double lat, double lon) {
+            return !(std::abs(lat) < 0.01 && std::abs(lon) < 0.01);
+        };
         double vlat, vlon, valt, alt_display, vmag;
-        if (!o->bLiftoff) {
+        if (!o->bLiftoff ||
+            (!o->bStageSep && !stage_valid(o->OUT11[0], o->OUT11[1])) ||
+            ( o->bStageSep && !stage_valid(o->OUT12[0], o->OUT12[1])))
+        {
             vlat = kKSCLatDeg; vlon = kKSCLonDeg; valt = 0.0;
             alt_display = 0.0;
             vmag        = 0.0;
@@ -546,7 +557,12 @@ static void idle() {
 
     // Trajectory sampler for the map view.  Only push samples once the
     // vehicle has lifted off — the plant's ECI_to_LLA chain returns
-    // NaN pre-liftoff.
+    // NaN pre-liftoff, and for one tick after bLiftoff goes true the
+    // stage integrator's Out11 register is still (0,0,0) before the
+    // first integrator stride populates it from Xe_0_m.  Reject that
+    // transient (lat ≈ 0, lon ≈ 0 near null-island) — otherwise the
+    // first trajectory sample lands in the Gulf of Guinea and draws a
+    // long chord from KSC across the Atlantic.
     if (g_lv) {
         sim::SimClock *ck = sim::GetSimClock();
         double t = ck ? ck->GetElapsedTime() : 0.0;
@@ -560,13 +576,18 @@ static void idle() {
             } else {
                 lat = o->OUT12[0]; lon = o->OUT12[1]; alt = o->OUT12[2];
             }
-            g_map.push_sample(t, lat, lon, alt, /*is_sib_spent=*/false);
-            if (o->bStageSep) {
-                g_map.push_sample(t, o->OUT11[0], o->OUT11[1],
-                                  o->OUT11[2], /*is_sib_spent=*/true);
-                g_sib_separated = true;
+            const bool valid =
+                std::isfinite(lat) && std::isfinite(lon) && std::isfinite(alt) &&
+                !(std::abs(lat) < 0.01 && std::abs(lon) < 0.01);
+            if (valid) {
+                g_map.push_sample(t, lat, lon, alt, /*is_sib_spent=*/false);
+                if (o->bStageSep) {
+                    g_map.push_sample(t, o->OUT11[0], o->OUT11[1],
+                                      o->OUT11[2], /*is_sib_spent=*/true);
+                    g_sib_separated = true;
+                }
+                g_last_map_sample_sec = t;
             }
-            g_last_map_sample_sec = t;
         }
     }
 
