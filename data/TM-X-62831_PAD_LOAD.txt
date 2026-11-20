@@ -20,9 +20,38 @@
 #   LATITUDE  = 28.521963°  (Table 3B φ_L)
 #   PADLONG   = −80.561141° (LC-34; tn-hold cite, matches prior pad)
 #
-# AZO / UNITW / AXO still from the prior pad (not re-derived).  If those were
-# tied to a liftoff-epoch TEPHEM, they may need a ~1.25° Earth-rate tweak for
-# the T−300 s clock-zero; left unchanged until a clear AZO definition is used.
+# AZO / UNITW / AXO status (verified against virtualagc Colossus249 sources):
+#
+# AZO (01711-01712) is "ANGLE BETWEEN THE X AXIS OF BASIC REF COORDINATE SYSTEM
+# AND THE X AXIS OF THE EARTH-FIXED COORDINATE SYSTEM AT TEPHEM" per
+# PLANETARY_INERTIAL_ORIENTATION.agc — i.e. GMST at TEPHEM, DP REVS B-0
+# (fraction of a full revolution).
+#
+# The AGC's inertial subsystem (ISS) is aligned at liftoff / P02 completion
+# and the P11 start aligns with the liftoff epoch; there is NO "GRR analog"
+# in the AGC that would require re-anchoring AZO relative to T_L' the way the
+# plant anchors its LVDC frame.  The 300 s sim-start-to-liftoff offset is
+# accounted for naturally by AGC-elapsed time flowing through
+# AZ = AZO + ω_E · T in EARTHMX — no manual Earth-rate tweak is needed on
+# the pad-loaded AZO.
+#
+# The currently-loaded value (hi=30636, lo=33227) = 0.7753 rev ≈ 279.086°
+# is Luminary069's documented Apollo 10 sample value and is NOT correct for
+# our TEPHEM.  Correct value for TEPHEM = 1968-10-11 14:57:45 UT:
+#     GMST   = 244.697257° = 0.6797146 rev
+#     encoded: hi=25600 lo=16153  (DP REVS B-0)
+# (Verification: round-trip quantization error ~0.001 arcsec.)  To apply:
+#   01711E 25600E E
+#   01712E 16153E E
+# This is left unmodified below pending validation against a run.
+#
+# UNITW (01713-01720): unit Earth polar axis in BRCS.  Pure +Z is correct
+# when BRCS X points to Mean Equinox (not pad-local meridian); no epoch
+# adjustment needed beyond millennium-scale precession.
+#
+# PGNCSALT (P11 pad altitude) is absent from this pad load.  Our pad
+# altitude ~34.7 m encodes to DP B-29 as essentially zero (hi=0, lo=21 oct);
+# omitting it is equivalent to zero and is harmless at orbital scales.
 #
 # Other erasables still copied from AS-205_PAD_LOAD.txt (TN-era / generic).
 # Apollo 7 flew SUNDISK 282; Colossus249 is the sim CMC stand-in.
@@ -63,7 +92,10 @@ V21N02E
 01707E 11545E E
 01710E 32404E E
 
-# --- AZO (01711–01712) — Earth orientation angle; PL
+# --- AZO (01711–01712) — Earth orientation angle at TEPHEM (= GMST); PL
+# Current value is Luminary069's Apollo 10 sample (0.7753 rev ≈ 279.086°),
+# not correct for our TEPHEM 1968-10-11 14:57:45 UT.  See block comment at
+# file head; correct encoding is hi=25600 lo=16153 (0.6797 rev = 244.697°).
 01711E 30636E E  # AZO — Earth orientation angle; PL
 01712E 33227E E
 
