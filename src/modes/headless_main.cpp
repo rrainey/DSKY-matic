@@ -19,6 +19,7 @@
 #include "dsky_dispatch.h"
 #include "dsky_click.h"
 #include "StderrDskyHardware.h"
+#include "tmx_as205_config.h"
 
 #include <chrono>
 #include <cstdio>
@@ -32,6 +33,7 @@ int main(int /*argc*/, char ** /*argv*/) {
                          "                      TM-X-62831_PAD_LOAD.txt, ddd-*-Colossus249.tsv)\n");
 
     SaturnStartupHelper start_helper;
+    start_helper.SetBatchConfig(dskymatic::tmx_as205_config());
     SaturnIBAgcBridge *lv = start_helper.GetLaunchVehicle();
     std::fprintf(stderr, "dskymatic-headless: launch vehicle = %p\n", (void *)lv);
 

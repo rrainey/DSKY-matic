@@ -20,6 +20,7 @@
 #include <agc_engine.h>
 
 #include "map_view.h"
+#include "tmx_as205_config.h"
 
 #include <GL/glut.h>
 
@@ -936,7 +937,10 @@ int main(int argc, char **argv) {
     dsky_set_sign("R3S", 0);
 
     // Bring up the sim.  SaturnStartupHelper::Initialize is lazy on
-    // first GetLaunchVehicle() call.
+    // first GetLaunchVehicle() call; prime it with an explicit TMX AS-205
+    // BatchConfig so every ExternalInputs_saturn_ib_stack_tag member is
+    // pinned here rather than inherited from upstream sentinel defaults.
+    g_start_helper.SetBatchConfig(dskymatic::tmx_as205_config());
     g_lv = g_start_helper.GetLaunchVehicle();
     std::fprintf(stderr, "sim: launch vehicle = %p\n", (void *)g_lv);
 
